@@ -77,8 +77,10 @@ WHERE <kolona> <IS/IS NOT> NULL
 
 **Agregatne funkcije**:
 
-    SELECT <FUNCTION>(<kolona>)
-    FROM <tabela>
+```sql
+SELECT <FUNCTION>(<kolona>)
+FROM <tabela>
+```
 
 Agregatne funkcije su `COUNT, MIN, MAX, SUM, AVG`. `AVG` računa prosečnu vrednost samo
 onih kolona koje nisu `NULL`, tako i `COUNT` broji samo one kolone koje nisu `NULL`.
