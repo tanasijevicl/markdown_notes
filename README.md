@@ -1,717 +1,477 @@
-# Sistemi u realnom vremenu
+# Operativni sistemi 1 - notes
 
-**Sistemi u realnom vremenu (19E044SRV)** - Slajdovi za vežbe (2024/2025)
+## Uvod u operativne sisteme
 
-**as. ms Haris Turkmanović**
+### Pojam i funkcije operativnog sistema
 
-*Elektrotehnički fakultet u Beogradu*
+**Operativni sistem** je program (softver) koji omogućava izvršavanje korisničkih programa na računaru i služi kao posrednik između tih programa i računarskog hardvera, pružajući usluge tim programima.
 
-## RTOS
+Operativni sistem se može opisati i kao skup rutina koje obavljaju operacije sa hardverskim uređajima računara, koje se nalaze u memoriji računara i koje se mogu koristiti kao usluge (te usluge programi, koji se izvršavaju na tom računaru, pozivaju kao tzv. **sistemske pozive**).
 
-***Task*** predstavlja nezavisnu logičku celinu u kodu enkapsuliranu u vidu programske funkcije. Sa stanovišta programskog jezika *task* je specifična funkcija koja:
+Tradicionalno shvatanje osnovnih komponenata operativnog sistema:
 
-- u okviru svoje definicije ima jednu beskonačnu programsku petlju 
+- **Jezgro/kernel** - deo operativnog sistema koji je uvek učitan u operativnu memoriju sistema ili se u nju učitava pri uključivanju računara i tu ostaje stalno do isključenja, izvršava osnovne funkcije operativnog sistema i pruža usluge programima koji se izvršavaju na računaru
 
-- ne poziva se kao druge funkcije već se samo jednom kreira od strane Scheduler-a operativnog sistema 
+- **Sistemski programi** - programi koji se izvršavaju kao svi ostali, samo što se isporučuju kao sastavni deo operativnog sistema, jer obavljaju neke opšte radnje
 
-Pseudo-kod koji opisuje definiciju jedne tipične *task* funkcije je:
+- **Korisnički interfejs** - deo za interakciju sa korisnikom
 
-```c
-void Task(arguments) {
-    // Task data initialization
-    // go to endless loop
-    while(1) {
-        // Task algorithm
-    }
-}
-```
+Korisnički interfejsi:
 
-Kada se task izvršava na nekoj platformi on koristi resurse te platforme (registre, stek, ...) kao da je jedinstveni task u sistemu. Kako bi se zapamtili resursi dodeljeni *task*-u ali i sačuvalo stanje određenih resursa (na primer stanje registara CPUa) bitnih za izvršavanje *task*-a, svakom kreiranom *task*-u se dodeljuje struktura nazvana **kontekst *task*-a**.
+- **Interpreter komandne linije (*command line interpreter*, CLI)** - drugačije konzola, sistemski program (školjka) ili deo kernela koji intereaguje sa korisnikom samo pomoću tastature i ekrana
 
-Svakom novokreiranom *task*-u dodeljuje se **prioritet**. U slučaju korišćenja algoritma raspoređivanja koji koriste prioritet *task*-ova, prioritet *task*-a određuje koji od dva *task*-a će dobiti procesorsko vreme ukoliko su oba *task*-a spremna za izvršavanje.
+- **Grafički korisnički interfejs (*graphical user interface*, GUI)** - moderniji interfejs (rasterski ekran, miš, radna površina...)
 
-U većini realizacija RTOS-a, *task* može imati neko od sledećih stanja:
+## Osnovni pojmovi
 
-- ***Running*** – *task* se izvršava na procesoru
+**Sistemski poziv** (*system call*) je metod kojim program koji se izvršava na nekom OS-u traži određenu uslugu od tog OS-a. 
 
-- ***Ready*** – *task* je spreman za izvršavanje, ali se ne izvršava (verovatno jer se trenutno izvršava task većeg ili istog prioriteta)
+Skup dostupnih bibliotečnih potprograma koji vrše sistemske pozive na nekom OS-u čini **aplikativni programski interfejs** (*application programming interface*, API) datog OS-a na datom programskom jeziku. Implementacija tih potprograma unutar biblioteke sadrži instrukcije koje vrše sistemski poziv na mašinskom jeziku, urađeno na način kako dati OS to zahteva - **interfejs sistemskih poziva** (*system call interface*).
 
-- ***Blocking*** – *task* je blokiran i čeka na neki događaj u sistemu
+**Proces** (*process*) je jedno izvršavanje nekog programa na računaru, koje potencijalno teče uporedo sa drugim takvim izvršavanjima istog ili drugih programa.
 
-U zavisnosti od realizacija RTOS-a mogu postojati i dodatna stanja (na primer ***Suspended*** u slučaju FreeRTOS-a). U većini slučajeva uvek postoje stanja kao što su *Running*, *Ready* and *Blocking*.
+**Program** je statički zapis, specifikacija onoga što računar treba da uradi. Jedna aktivacija programa predstavlja proces. Nad istim programom može se pokrenuti više procesa, više nezavisnih izvršavanja, svako sa svojim podacima.
 
-U okviru kernela operativnog sistema, komponenta pod nazivom ***Scheduler*** (jezgro kernela) ima zadatak da vrši raspoređivanje *task*-ova. Raspoređivanje *task*-ova zapravo podrazumeva odlučivanje o tome kom će *task*-u u posmatranom trenutku biti dodeljeno procesorsko vreme. Postoji mnoštvo različitih algoritama za raspoređivanje *task*-ova koji prilikom raspoređivanja razmatraju različite parametre *task*-a ili sistema. Dva najčešća algoritma raspoređivanja su:
+Računarski sistemi mogu biti **monoprogramski** ili **multiprogramski**, dok operativni sistemi mogu da budu **monoprocesni** ili **multiprocesni**.
 
-- **Round-Robin algoritam** - svaki *task* dobija isto vreme za izvršavanje
+Karakteristično ponašanje svakog programa, smenjuju se dve faze:
 
-- **Priority Round-Robin algoritam** - *task* najvećeg prioriteta dobija procesorsko vreme
+- **CPU burst** (nalet izvršavanja na procesoru) - sekvenca instrukcija koje rade samo sa registrima procesora i operativnom memorijom
 
-Tri najčešća mesta u toku izvršavanja programa gde se poziva *Scheduler* su:
+- **I/O operation** (ulazno-izlazna operacija) - proces traži sistemsku uslugu, tj. ulazno-izlaznu operaciju
 
-1. Kada trenutni *task* koji se izvršava odlazi u blokirano stanje, a nije došlo do isteka sistemskog tajmera.
+Koncept uporednog izvršavanja procesa, pri čemu se procesor vremenski multipleksira između različitih procesa naziva se **multiprogramiranje**.
 
-2. Kada usled generisanja prekida *task* većeg prioriteta prelazi iz stanja "Blokiran" u stanje "Spreman za izvršavanje"
+**Fajl** (*file*) predstavlja univerzalan, jednoobrazan, apstraktan logički koncept za smeštanje podataka i programa na najrazličitijim uređajima. Pristup do fajla je jednoobrazan i obavlja se kroz standardizovan API sistemskih poziva, dok OS sakriva sve raznolikosti i promenljivosti uređaja na kojima su ti podaci smešteni i načina na koji im se pristupa.
 
-3. Usled isteka sistemskog tajmera
+### Vrste računarskih i operativnih sistema
 
-Ukoliko dolazi do dodele procesorskog vremena nekom *task*-u koji nije trenutni *task* koji se izvršava na procesoru, onda se vrši **proces zamene konteksta**. Kada *task* dobije procesorsko vreme kontekst procesora na kome se *task* izvršava (sadržaj steka stek, vrednosti registara CPUa) mora biti isti kao kontekst procesora neposredno pre odlaska *task*-a u stanje "Blokiran" ili stanje "Spreman za izvršavanje"
+Dve fundamentalne koncepcije (hardverske) arhitekture računarskih sistema sa više procesora:
 
-Proces zamene konteksta se sastoji se od dve faze:
+- **Multiprocesorski sistem** - računarski sistem sa više procesora koji imaju zajedničku (deljenu) operativnu memoriju
+  
+- **Distribuirani sistem** - sistem sa više procesora koji nemaju zajedničku operativnu memoriju, a koji su povezani komunikacionom mrežom preko koje mogu razmenjivati poruke 
 
-1. Čuvanje konteksta procesora trenutnog *task*-a
+Multiprocesorski sistem na hardverskom nivou može biti:
 
-2. Restauracija konteksta procesora *task*-a koji je dobi procesorsko vreme
+- simetričan - svi procesori opšte namene su jednaki, imaju isto vreme pristupa operativnoj memoriji
 
-## FreeRTOS 
+- asimetričan - neki procesori su specijalizovani za posebne namene ili imaju različito vreme pristupa memoriji
 
-**FreeRTOS** je *Open Source* RTOS kernel pogodan za implementaciju *Real-Time embedded* aplikacija.
+OS za multiprocesorski sistem može biti:
 
-Konfigurisanje FreeRTOS-a se vrši u okviru FreeRTOSConfig.h header fajla. U okviru ovog fajla moguće je izvršiti podešavanje konfigurabilnih parametara FreeRTOS-a. Fajl uglavnom  čine makroi. Promenom vrednosti makroa u header fajlu moguće je uključiti/isključiti određene funkcionalnosti FreeRTOS-a.
+- simetričan - svi procesori su ravnopravni, u smislu da svi mogu izvršavati kod kernela
 
-Algoritmi raspoređivanja *task*-ova:
+- asimetričan - jedan procesor je master i on izvršava raspoređivanje procesa na druge procesore, kao i kernel kod za ostale sistemske usluge; ostali procesori su slave i samo izvršavaju kod korisničkih procesa u skladu sa onim što im procesor dodeli
 
-- **Kooperativno raspoređivanje** - svi *task*-ovi su istog prioriteta, promena konteksta se vrši samo kada *task*-ovi prepuste kontrolu
+**Distribuirani operativni sistem** (*distributed OS*) je operativni sistem koji na skupu umreženih računara, tzv. klasteru (*cluster*), stvara utisak jedinstvenog prostora računarskih resursa, odnosno jedinstvenog "virtuelnog računara" i sakriva postojanje različitih računara.
 
-- **Round-Robin raspoređivanje** - svi *task*-ovi su istog prioriteta, *Scheduler* brine o tome da svaki *task* dobije isto vreme za izvršavanje
+**Serverski računar** je računar namenjen za opsluživanje zahteva koji stižu komunikacionim protokolima preko računarske mreže sa udaljenih računara (klijenata).
 
-- ***Preemption* raspoređivanje** - raspoređivanje sa kontrolom pristupa, *Scheduler* aktivira *task* najvišeg prioriteta
+**Sistemi u oblaku (*cloud*)** su distribuirani sistemi sa mnogo povezanih serverskih računara u jednom računarskom centru (*data center*) ili regionalno ili globalno raspoređenim računarskim centrima koji obezbeđuju različite usluge korisnicima.
 
-```c
-#define configUSE_PREEMPTION 1          // Preemption algoritam raspoređivanja
-#define configUSE_TIME_SLICING 1        // Za taskove istog prioriteta primenjuje Round-Robin
-```
+**Ugrađen (*embedded*) sistem** je sistem koji služi za nadzor i upravljanje određenog većeg inženjerskog (hardverskog) okruženja i koji ispunjava svoj cilj obradom informacija, ali pri čemu obrada informacija jeste samo sredstvo, a ne njegov primaran cilj.
 
-U većini *embedded* aplikacija, baziranih na RTOS-u, neophodno je obezbediti periodično pozivanje algoritama za raspoređivanje *task*-ova. Ova funkcionalnost se u okviru *embedded* platforme realizuje koristeći neki od dostupnih tajmera te *embedded* platforme.
+Veliki deo ovakvih sistema spada u kategoriju tzv. **sistema za rad u realnom vremenu** (*real-time system*, RT) - sistem koji obrađuje informacije i čije korektno funkcionisanje ne zavisi samo od logičke korektnosti rezultata, nego i od njihove pravovremenosti.
 
-```c
-#define configTICK_VECTOR TIMER_A0_VECTOR
-```
+Kategorije RT sistema:
 
-U okviru prekidne rutine tajmera poziva se *Scheduler*. Moguće je konfigurisati FreeRTOS *Scheduler* tako da se u okviru prekidne rutine sistemskog tajmera poziva proizvoljna *callback* funkcija definisana u okviru aplikacija.
+- **"tvrdi" (*hard*)** - sistem za koji je apsolutni imperativ da odziv stigne u zadatom vremenskom roku (*deadline*)
 
-```c
-#define configUSE_TICK_HOOK 1
-```
+- **"meki" (*soft*)** - sistem kod kojeg je vremenski rok važan i treba da bude poštovan ali se povremeno može i prekoračiti
 
-Na svaki istek sistemskog tajmera poziva se korisnički definisana funkcija koja mora imati sledeći potpis:
+## Upravljanje memorijom
 
-```c
-void vApplicationTickHook(void);
-```
+### Adresiranje memorije
 
-Funkcija se izvršava u okviru prekidne rutine, tako da je poželjno da bude kratka, ne koristi puno steka i da ne zove API funkcije koje se ne završavaju sa `FromISR`.
+**Operativna memorija** (*operating memory*, OM) je linearno uređen skup ćelija sa pridruženim adresama iz skupa $0..2^{n-1}$, gde je n širina adrese u bitima (najčešće 32 ili 64).
 
-Većina aplikacija baziranih na RTOS imaju sledeći tok izvršavanja u okviru `main` funkcije:
+**Asembler (assembly)** je program koji prevodi sadržaj ulaznog, tekstualnog fajla sa kodom na simboličkom mašinskom jeziku u ulazni fajl sa binarnim zapisom mašinskih instrukcija i podataka.
 
-1. Inicijalizacija hardvera
+**Direktiva** je linija asemblerskog teksta koja ne sadrži ni jednu instrukciju, već neku drugu specifikaciju ili uputstvo asembleru:
 
-2.  Kreiranje objekata RTOS-a
+- **def** -  definiše simboličku konstantu, kojoj se pridružuje vrednost konstantnog izraza navedenog u direktivi (`mask def 0x80`)
 
-3.  Startovanje *Scheduler*-a
+- **labela** - identifikator (simbol) pridružen jednoj liniji asemblerskog koda, tj. svakoj labeli se pridružuje vrednost tekuće adrese te linije  
 
-Ukoliko je sistem dobro inicijalizovan i ukoliko su objekti uspešno kreirani, poziv *Scheduler*-a sa programerskog stanovišta predstavlja funkciju iz koje se nikada ne vraćamo. U okviru FreeRTOS-a se poziv *Scheduler*-a realizuje pozivom funkcije:
+- **org** - eksplicitno podešava tekuću adresu linije, tj. uzrokuje promenu adrese od koje se nastavlja (ili započinje) dalje generisanje koda 
 
-```c
-vTaskStartScheduler();      // Start the Scheduler
-```
+- **start** - označava adresu početne instrukcije programa, ovu informaciju koristi OS kada pokreće proces nad ovim programom
 
-## *Task*-ovi
+- **db|dw|dd** - direktive za definisanje podataka, za svaki navedeni specifikator jednog podatka, odvaja se prostor u generisanom binarnom zapisu za smeštanje jednog podatka navedenog tipa (bajt, dva bajta, ...), na tekućoj adresi, i u taj prostor upisuje binarni zapis vrednosti inicijalizatora koji je zadat konstantnim izrazom, tekuća adresa se uvećava za veličinu alociranih podataka (label: db|dw|dd data-spec,...)
 
-Svakom kreiranom *task*-u je moguće dodeliti prioritet. Opseg prioriteta *task*-ova se kreće od `0` do `(configMAX_PRIORITIES – 1)`. Makro `configMAX_PRIORITIES` je moguće menjati u okviru konfiguracije FreeRTOS-a
+Konstante koje se koriste u programu kao operandi operacija u mašinskim instrukcijama koriste se kao operandi specifikovani **neposrednim načinom adresiranja** (*immediate address mode*). Operand je binarni sadržaj u odgovarajućem polju same instrukcije (`#constant-expression`).
 
-Funkcionalnosti FreeRTOS *task*-a su implementirane u okviru klasične C-ovske funkcije tzv. "*Task* funkcija". *Task* funkcija mora imati sledeći potpis (deklaraciju):
+Kod **registarskog direktnog adresiranja** (*register direct address mode*) operand je u registru koji je specifikovan u odgovarajućem polju instrukcije.
 
-```c
-void vTaskFunctionName(void* pvParameter);
-```
+Za indirektan pristup preko pokazivača koristi se **registarsko indirektno adresiranje** (*register indirect address mode*). Operand je u memoriji na lokaciji čija je adresa zadata vrednošću registra koji je specifikovan u određenom polju instrukcije.
 
-Osobine *Task* funkcije:
+Kod **registarskog indirektnog adresiranja sa pomerajem** (*register indirect address mode with displacement*) operand je u memoriji na lokaciji čija se adresa dobija sabiranjem sadržaja registra specifikovanog u instrukciji i neposredne konstante definisane u instrukciji.
 
-- U funkciju se ulazi samo jednom, funkciju poziva scheduler nakon startovanja
+Ako statički podatak programa inicijalizovan konstantnim izrazom, tj. izrazom čija se vrednost može izračunati za vreme za prevođenja, onda prevodilac generiše binarni zapis te inicijalne vrednosti u prostoru alociranom za taj podatak. 
 
-- Funkcionalnost *task*-a se implementira u okviru beskonačne petlje
+Pošto se statički alocira za vreme prevođenja, prevodilac poznaje njegovu adresu, pa se pristup do ovih podataka može izvršiti **memorijskim direktnim adresiranjem** (*memory direct address mode*). Operand je u memoriji, na lokaciji čija je adresa zadata u samoj instrukciji.
 
-- Iz *Task* funkcije se ne izlazi eksplicitno (klasičnim pozivom `return` naredbe) - Ukoliko je potrebno izaći iz funkcije (*task* više nije potreban) potrebno ga je izbrisati.
+**Implementacija steka** na nivou arhitekture procesora:
 
-- Jedna *Task* funkcija se može koristi kao izvršna funkcija više *task*-ova. U tom slučaju svaki kreirani *task* će imati svoju posebnu instancu *Task* funkcije koja će imati svoj zaseban stek.
+- stek se alocira u memoriji, a na vrh steka može ukazivati vrednost nekog od programski dostupnih registara procesora (*stack pointer*)
 
-Struktura koda jedne tipične *task* funkcije u FreeRTOS-u:
+- stek može rasti ka višim ili nižim adresama memorije
 
-```c
-void ATaskFunction(void* pvParameters) {
-    // Variable declarations
-    int32_t varExample = 0;
-    
-    // Infinite loop
-    for(;;) {
-        // Code
-    }
+- vrednost registra može da ukazuje na poslednju zauzetu ili prvu slobodnu lokaciju steka
 
-    // The task must be deleted before reaching the end of its implementation
-    vTaskDelete(NULL);
-}
-```
+**Instrukcije potprograma** moraju da adresiraju lokalne podatke relativnim u odnosu na vrh steka, pri čemu su pomeraji poznati i konstantni za dati lokalni podatak i datu poziciju unutar koda potprograma.
 
-Task može biti u jednom od sledećih stanja:
+**Instrukcije skoka** mogu da adresiraju odredišnu instrukciju **memorijski direktnim adresiranjem**, adresa odredišne instrukcije je data u odgovarajućem polju same instrukcije.
 
-- ***Running*** - *task* se trenutno izvršava
-    - Na platformi koja ima jedno procesorsko jezgro samo jedan *task* u sistemu može biti u ovom stanju
-- ***Ready*** – *task* je u listi *task*-ova spremnih za izvršavanje
-    - *Task* nije u stanju *Blocked* ili *Suspended* ali se trenutno ne izvršava jer postoji drugi *task* jednakog ili višeg prioriteta koji se trenutno nalazi u stanju *Running*
-- **Blocked** - *task* je blokiran i čeka generisanje nekog događaja
-    - *Task* se može blokirati čekajući na semaforu, grupi događaja, queue ili notifikaciji
+Takođe instrukcije skoka mogu da koriste **relativno**, tj. registarsko indirektno adresiranje sa pomerajem u odnosu na vrednost PC tokom izvršavanja ove instrukcije. Odredište skoka izračunava se kao zbir trenutne vrednosti PC i pomeraja iz instrukcije.
 
-- **Suspended** - *task* koji se nalazi u ovom stanju ne učestvuje u raspoređivanju od strane *Scheduler*-a
-    - *Task* ulazi u ovo stanje isključivo eksplicitnim pozivom API funkcija koje *task* stavljaju o ovo stanje.
-    - *Task* izlazi iz ovog stanja samo eksplicitnim pozivom API funkcija koje vraćaju *task* u stanje *Ready*.
+**Prevodilac (*compiler*)** je program koji prevodi tekstualni zapis izvornog programa na višem programskom jeziku u binarni, mašinski zapis. 
 
-> [!NOTE]
-> U okviru FreeRTOS-a *task* koji je u stanju *Blocked* ima ***timeout period***. Nakon isteka ovog vremena, *task* će biti odblokiran čak i ako događaj na koji *task* čeka nije generisan."Beskonačno blokiranje" se može realizovati tako što će *timeout* biti "beskonačan"
+Kada prevodilac prevodi jedan fajl sa izvornim kodom (.cpp), prevodilac će generisati jedan fajl sa prevedenim kodom, fajl sa tzv. objektnim kodom (*object file*, .obj ili .o). Fajl sa izvornim kodom sastoji se isključivo od deklaracija tipova (uključujući i klase), funkcija, objekata i drugog. **Deklaracija** je iskaz koji uvodi identifikator programa. Svako ime (identifikator) koje se koristi u programu mora najpre biti deklarisano, u suprotnom će prevodilac prijaviti grešku u prevođenju.
 
-Neke od najčešće korišćenih API funkcija FreeRTOS-a koje su neophodne za rad sa *task*-ovima:
+Prevodilac najpre učitane znakove grupiše u veće celine, tzv. leksičke elemente ili lekseme ili žetone (*tokens*). Ova faza prevođenja naziva se **leksička analiza** (*lexical analysis*).
 
-| Funkcija      | Opis                                            |
-| ------------- | ----------------------------------------------- |
-| `xTaskCrate`  | Kreira *task*                                   |
-| `vTaskDelete` | Briše *task*                                    |
-| `vTaskDelay`  | Blokira pozivajući *task* određeni period vremena |
+Prevodilac tokom prevođenja prepoznaje veće jezičke celine (rečenice) na osnovu gramatike jezika. Ova faza prevođenja se naziva **parsiranje** (*parsing*).
 
-**Kreiranje *task*-ova** se vrši koristeći `xTaskCreate` funkciju koja ima sledeću deklaraciju:
+Za prepoznate rečenice i elemente u njima, prevodilac proverava ostala pravila jezika, tzv. **semantička pravila** (*semantic rules*).
 
-```c
-BaseType_t xTaskCreate(TaskFunction_t pvTaskCode,
-                       const char * const pcName,
-                       uint16_t usStackDepth,
-                       void* pvParameters,
-                       UBaseType_t uxPriority,
-                       TaskHandle_t *pxCrateTask);
-```
+Konačno, za one elemente rečenica za koje je to definisano semantikom jezika, prevodilac generiše sadržaj u prevedenom objektnom fajlu u kome se principijelno nalazi:
 
-| Parametar       | Opis                         |
-| ----------------| ---------------------------- |
-| `pvTaskCode`    | Prethodno kreirana *task* funkcija |
-| `pcName`        | Naziv *task*-a |
-| `usStackDepth`  | Veličina steka koja se dodeljuje *task*-u (jedinica je širina procesorske reči u bajtovima) |
-| `pvParameters`  | Parametar koji prilikom pokretanja *task* želimo da prosledimo *task*-u |
-| `uxPriority`    | Prioritet *task*-a |
-| `pxCreatedTask` | Instanca kreiranog *task*-a (implicitno predstavlja pokazivač na kreirani *task*) |
+- binarni mašinski kod za mašinske (procesorske) instrukcije naredbi tela funkcije (potprograma)
 
-Ukoliko je *task* uspešno kreiran vraća se `pdPASS` dok se u suprotnom vraća `pdFALSE`. Prilikom realizacije softvera obavezno proveravati šta vraća ova funkcija.
+- alociran prostor za statičke objekte (podatke), tj. sa tzv. statičkim trajanjem skladištenja
 
-**Brisanje kreiranog *task*-a** se vrši koristeći `vTaskDelete` funkciju koja ima sledeću deklaraciju:
+Prevodilac u **tabeli simbola** čuva informacije o svakom deklarisanom identifikatoru. 
 
-```c
-void vTaskDelete(TaskHandle_t pxTask);
-```
+Prevodilac u prevedenom fajlu ostavlja i informacije o svim imenima (simbolima) koja su definisana u datom fajlu, a mogu se koristiti u drugim fajlovima - **imena sa spoljašnjim vezivanjem** (*external linking*).
 
-| Parametar       | Opis |
-| --------------- | ---- |
-| `pxTask`        | Instanca *task*-a koji brišemo. Ukoliko prosledimo NULL parametar to podrazumeva da funkciju pozivamo iz *task*-a koji želimo da brišemo |
+Imena koja imaju **interno vezivanje** (*internal linking*) ne mogu se koristiti u drugim fajlovima.
 
-**Blokiranje *task*-a** na određeni period se realizuje koristeći `vTaskDelay` funkciju:
+Da bismo napravili deklaraciju koja nije i definicija, za takav statički objekat potrebno je navesti ključnu reč `extern`. Sada prevodilac neće alocirati prostor za ovaj objekat (`extern int n = 0;`).
 
-```c
-void vTaskDelay(TickType_t xTicksToDelay);
-```
+Zadatak da od skupa objektnih fajlova napravi program (tj.izvršiv fajl) ima program koji se naziva **povezivač (*linker*)**. Linkeru se zadaje spisak ulaznih objektnih (.obj) fajlova i zadatak je da je napravi **izvršni (*executable*, .exe**) fajl kao svoj izlaz.
 
-| Parametar       | Opis |
-| --------------- | ---- |
-| `xTicksToDelay` | Broj tikova (poziva prekidnih rutina sistemskog tajmera) koliko želimo da *task* bude blokiran |
+Linker taj zadatak obavlja u dva prolaza:
 
-## Semafori
+- u prvom prolazu analizira ulazne fajlove, veličinu sadržaja (prevoda) i pravi mapu exe fajla, sakuplja informacije iz tabele simbola obj fajlova i izgrađuje svoju tabelu simbola
 
-Za **signalizaciju događaja** u sistemu koriste se neki od sledećih mehanizama:
+- u drugom prolazu generiše binarni kod i ujedno razrešava nerazrešena adresna polja mašinskih instrukcija na osnovu informacija o adresama u koje se preslikavaju simboli iz njegove tabele simbola
 
-- semafor
-- notifikacija
-- grupa događaja
+**Biblioteka (library)** je fajl sa tipičnom ekstenzijom (.lib), koja ima principijelno isti format kao i objektni fajl. Razlika je u tome što je obj fajl nastao prevođenjem jednog izvornog fajla, dok je lib nastao povezivanjem više obj (i moguće drugih lib) fajlova u jedan lib fajl.
 
-Za **komunikaciju** sa *task*-om koriste se neki od sledećih mehanizama:
+Linker može da prijavi samo dve vrste grešaka:
 
-- mehanizam deljene memorije
-- mehanizam prosleđivanja poruka
+- simbol nije definisan
 
-Semafori se koriste kako bi se signalizirala pojava nekog događaja. Dva tipa semafora koja se koriste za signalizaciju su:
+- simbol je višestruko definisan
 
-- **binarni semafor** - najčešće se koriste za sinhronizaciju i signaliziranje događaja i predstavljaju poseban tip brojačkih semafora
 
-- **brojački semafor** - najčešće se koriste za pristup resursu koji ima ograničen broj paralelnih pristupa i nakon kreiranja, dodeljuje mu se inicijalna vrednost brojanja
+### Organizacija i alokacija memorije
 
-> [!NOTE]
-> U okviru template projekta potrebno je uključiti `semphr.h` header fajl ukoliko želimo da koristimo API funkcije FreeRTOS-a za rad sa semaforima.
+U monoprocesnom sistemu, u memoriji je samo jedan proces, pa može da koristi sav memorijski prostor koji mu je na raspolaganju. Unutar svog raspoloživog prostora, proces može da organizuje logičke segmente (programski kod, statički podaci, prostor za alokaciju dinamičkih podataka, stek) na proizvoljan način.
 
-| Funkcija                  | Opis                    |
-| ------------------------- | ----------------------- |
-| `xSemaphoreCreateBinary`  | Kreira binarni semafor  |
-| `xSemaphoreCreateCounting`| Kreira brojački semafor |
-| `xSemaphoreTake`          | Zauzima semafor         |
-| `xSemaphoreGive`          | Oslobađa semafor        |
-| `vSemaphoreDelete`        | Briše semafor           |
+U multiprocesnom sistemu treba smestiti više procesa u deo RAM-a raspoloživ za procese. Najjednostavniji način je da se raspoloživi prostor podeli na N jednakih i disjunktnih delova, particija - **particionisanje**. OS vodi jednostavnu evidenciju o tome koja je particija slobodna, a koja zauzeta, kao i evidenciju o tome u kojoj particiji se proces izvršava.
 
-**Binarni semafor** se kreira pozivajući API funkciju FreeRTOS-a koja ima sledeću deklaraciju:
+Sada adresa od koje počinje prostor dodeljen procesu nije više poznata unapred, tj. za vreme prevođenja/pisanja asemblerskog koda, pa adresa kojom se adresira fizička memorija (**fizička adresa**) nije ista kao ona koju je generisala instrukcija (**logička adresa**). Fizička adresa se dobija sabiranjem logičke adrese i **bazne adrese** procesa, adrese početka oblasti u memoriji koju zauzima proces.
 
-```c
-SemaphoreHandle_t xSemaphoreCreateBinary(void);
-```
+Skup adresa koje instrukcije mogu da generišu čini **logički (virtuelni)** adresni prostor svakog procesa (uglavnom počinje od 0). Preslikavanje logičke (virtuelne) adrese u fizičku vrši se pri svakom adresiranju memorije tokom izvršavanja instrukcije, i za adresiranje instrukcija i podataka, potencijalno više puta tokom iste instrukcije. Zato se time bavi poseban deo procesora MMU (*memory management unit*).
 
-Semafor je kreiran kao "prazan" što znači da prvo mora da se oslobodi (koristeći API funkciju `xSemaphoreGive`) pre nego što ga neko zauzme (koristeći API funkciju `xSemaphoreTake`). Ukoliko je semafor uspešno kreiran vraća se instanca `SemaphoreHandle_t` strukture dok se u suprotnom vraća `NULL`.
+Proces je **relokatibilan**, tj. može se premestiti u drugu particiju prostim kopiranjem.
 
-**Brojački semafor** se kreira pozivajući API funkciju FreeRTOS-a koja ima sledeću deklaraciju:
+Deo memorije koji je neiskorišćen (slobodan), ali se ne može iskoristiti ni za šta drugo, jer je unutar prostora alociranog i rezervisanog samo za onog ko ga koristi, naziva se **interni fragment** (*internal fragment*), a ova pojava **interna fragmentacija**.
 
-```c
-SemaphoreHandle_t xSemaphoreCreateCounting(UBaseType_t uxMaxCount, UBaseType_t uxInitialCount);
-```
+Delimično rešenje problema particionisanja je **kontinualna alokacija**. Proces zauzima samo onoliko memorije koliko mu je potrebno, tu informaciju OS ima u exe fajlu programa - "memorijski otisak" (*footprint*) binarnog sadržaja.
 
-| Parametar        | Opis |
-| ---------------  | ---- |
-| `uxMaxCount`     | Maksimalan broj do kojeg semafor može da broji. Kada se dostigne ova vrednost, semafor više ne može da se oslobađa |
-| `uxInitialCount` | Početna vrednost brojača |
+Preslikavanje logičke (virtuelne) adrese i fizičku izgleda isto kao i za particionisanje. Pre samog preslikavanja MMU mora da proveri da li je generisanja logička adresa veća od stvarne veličine prostora dodeljenog procesu. Informacija o stvarnoj veličini prostora tekućeg procesa je dostupa u **registru granice** ili registru veličine. Ukoliko MMU detektuje prekoračenje procesor će generisati **izuzetak** (*exception*), signal da je instrukcija napravila prestup u pristupu memoriji (***memory access violation***).
 
-Ukoliko je semafor uspešno kreiran vraća se instanca `SemaphoreHandle_t` strukture dok se u suprotnom vraća `NULL`.
+Kada se proces ugasi prostor koji je zauzimao se oslobađa, u listu se dodaje oslobođeni fragment, uz spajanje sa eventualno postojećim slobodnim fragmentom ispred ili iza onog koji je zauzimao proces, kako bi se ukrupnili slobodni fragmenti. Slobodni fragmenti su sada **eksterni**, jer se nalaze izvan prostora koji je nekome dodeljen - **eksterna fragmentacija**.
 
-Iste API funkcije za zauzimanje i oslobađanje semafora se koriste bez obzira da li je u pitanju binarni ili brojački semafor.
+Kada treba da pronađe mesto za smeštanje procesa, OS treba da pronađe slobodan fragment dovoljne veličine - **algoritmom dinamičke alokacije**:
 
-Semafor se zauzima pozivajući API funkciju FreeRTOS-a koja ima sledeću deklaraciju:
+- prvi koji odgovara (*firs fit*) - najjednostavniji algoritam
 
-```c
-BaseType_t xSemaphoreTake(SemaphoreHandle_t xSemaphore, TickType_t xTicksToWait);
-```
+- onaj koji najbolje odgovara (*best fit*) - smanjenje eksterne fragmentacije
 
-| Parametar      | Opis |
-| -------------- | ---- |
-| `xSemaphore`   | Instanca prethodno kreiranog semafora koji se zauzima |
-| `xTicksToWait` | Maksimalan broj tikova koliko *task* može da se blokira čekajući da semafor postane dostupan |
+- onaj koji najlošije odgovara (*worst fit*) - u cilju da preostali slobodan fragment bude što upotrebljiviji
 
-Funkcija vraća `pdPASS` ako je semafor uspešno zauzet a `pdFAIL` ukoliko zauzimanje semafora nije uspešno urađeno. Funkcija se poziva isključivo iz *task*-a
+Nakon dužeg rada sistema, slobodna memorija može da postane jako fragmentirana, tako da se ni jedan fragment ne može da se iskoristi za novu alokaciju, i ako je ukupna količina memorije sasvim dovoljna. Moguće rešenje je **kompakcija** slobodnog prostora, kernel relocira sve procese tako da ih slaže jedan iza drugog, tako da sav slobodan prostor fuzioniše u samo jedan slobodan fragment na samom kraju.
 
-Semafor se oslobađa pozivajući API funkciju FreeRTOS-a koja ima sledeću deklaraciju:
+**Segmentna organizacija** - logički adresni prostor procesa se podeli na segmente, tako da prvih nekoliko bita logičke (virtuelne) adrese određuje broj segmenata u adresnom prostoru. Sadržaj procesa se podeli na logičke celine prema sadržaju (segment za kod, za podatke, za stek...). Svaki segment se može smestiti u fizičku memoriju na proizvoljno mesto, svaki segment ima svoju baznu adresu.
 
-```c
-BaseType_t xSemaphoreGive(SemaphoreHandle_t xSemaphore);
-```
+OS za svaki proces organizuje posebnu strukturu podataka, **tabelu preslikavanja segmenata** (*segment map table*, SMT) koju koristi MMU pri svakom preslikavanju. SMT sadrži po jedan ulaz - **deskriptor** za svaki segment u virtuelnom adresnom prostoru. Deskriptor je određene veličine koja je potrebna da se smeste navedene informacije (bazna adresa i veličina segmenta), određen broj adresibilnih jedinica (mali stepen dvojke, npr. 4, 8, 16). SMT se nalazi u memorijskom prostoru kernela.
 
-| Parametar      | Opis |
-| -------------- | ---- |
-| `xSemaphore`   | Instanca prethodno kreiranog semafora koji se oslobađa |
+Da bi MMU znao gde da pronađe tabelu za tekući proces, mora posedovati tu adresu u specijalizovanom, programski dostupnom registru **SMTP (*segment map table pointer*)**. Na osnovu vrednosti u SMTP, broja segmenta i veličine segmenta i veličine deskriptora, MMU izračunava (fizičku) adresu deskriptora:
 
-Funkcija vraća `pdPASS` ako je semafor uspešno oslobođen, a `pdFAIL` ukoliko oslobađanje semafora nije uspešno urađeno.
+    descr_addr = SMTP + segment_no * descr_size
 
-## Prekidi
+Ako se u deskriptoru pronađe specijalna vrednost *null* koji znači da adresirani segment nije u upotrebi izvršavanje instrukcija se prekida i signalizira se prestup u adresiranju memorije. U suprotnom MMU proverava pomeraj iz virtuelne adrese u odnosu na granicu dobijenu iz deskriptora. Ukoliko pomeraj prekoračuje granicu stvarne veličine segmenta, izvršavanje instrukcije se prekida i signalizira se prekoračenje granice segmenta. 
 
-Mehanizam prekida je u potpunosti isti bez obzira da li ste koristili neki RTOS ili pisali *Bare-Metal* softver.
+Ukoliko ove provere prođu bez izuzetaka, fizička adresa se dobija kao zbir bazne adrese dobijene iz deskriptora i pomeraja iz virtuelne adrese:
 
-> [!NOTE]
-> Potrebno je napomenuti da nije moguće blokiranje ISR jer je to svojstvo *task*-ova (softverskog dela).
+    p_addr = base_addr + offset
 
-U okviru FreeRTOS-a postoje dve vrste API funkcija:
+U asembleru se segmenti mogu definisati posebnim direktivama, a asembler to onda prevodi u odgovarajući format zapisa u obj/exe fajlu. Direktiva `seg` kojom započinje definicija segmenta, a koja se završava direktivom `end`. Direktivom `org` na početku zadaje se početna adresa segmenta.
 
-- One koje se pozivaju **iz konteksta *task*-a**
+OS može pružiti uslugu **dinamičke alokacije** logičkog segmenta (regiona) u virtuelnom adresnom prostoru, koju onda proces može tražiti sistemskim pozivu, tokom svog izvršavanja. Efekat ove operacije isti su kao i kada se logički segment kreira statički na osnovu definicije u exe fajlu.
 
-- One koje se pozivaju **iz konteksta prekidne rutine** (*Interrupt safe API functions*)
-    - Kako bi povećali vremensku efikasnost funkcija koje se pozivaju iz konteksta *task*-a, a za koje postoji potreba da se pozivaju i iz prekidne rutine, uvedene su posebne funkcije.
-    - Da funkcije nisu razdvojene postojao bi veliki *overhead* kada se neka API funkcija poziva iz prekidne rutine što nije dobro jer ISR treba da bude što kraća i efikasnija.
+Rešenje problema kontinualne alokacije - **segmentno-stranična organizacija**:
 
-API funkcije FreeRTOS-a koje se mogu koristiti iz konteksta prekidne rutine imaju isti naziv kao API funkcije koje se mogu koristiti iz konteksta *task*-a ali je na kraju naziva funkcije dodat sufiks `FromISR`.
+- logički (virtuelni) prostor procesa se podeli na segmente iste maksimalne veličine (uvek stepen dvojke)
 
-Ekvivalenti FreeRTOS API funkcija `xSemaphoreGive` i `xSemaphoreTake` u prekidnoj rutini su:
+- svaki segment se logički deli na **stranice (*page*)** iste veličine (uvek stepen dvojke)
 
-```c
-BaseType_t xSemaphoreGiveFromISR(xSemaphore, pxHigherPriorityTaskWoken);
+- segment može imati različitu stvarnu veličinu, ali uvek zaokruženu na cele stranice
 
-BaseType_t xSemaphoreTakeFromISR(xSemaphore, pxHigherPriorityTaskWoken);
-```
+- fizička memorija logički je podeljena **okvire (*frame*)** veličine jednake veličini stranice
 
-| Parametar                   | Opis |
-| --------------------------- | ---- |
-| `xSemaphore`                | Instanca prethodno kreiranog semafora koji se oslobađa |
-| `pxHigherPriorityTaskWoken` | ...  |
+- jedinica alokacije je sada jedna stranica: svaka stranica može se alocirati u bilo koji okvir i uvek se alocira ceo okvir za smeštanje stranice
 
-U okviru konteksta prekida se ne vrši automatska zamena konteksta već se prosleđuje informacija o tome da li je potrebno izvršiti zamenu konteksta. **Opcioni** parametar `pxHigherPriorityTaskWoken` koji funkcija setuje na vrednost `pdTRUE` ukoliko postoji potreba da se izvrši zamena konteksta (odnosno poziv *Scheduler*-a) odmah nakon završetka prekidne rutine, u suprotnom funkcija setuje vrednost `pdFALSE`.
+Virtuelna adresa sada ima 3 polja: broj segmenta, broj stranice unutar segmenta i pomeraj unutar strance. Registar SMTP procesora ukazuje na SMT tekućeg procesa. SMT svakog procesa sadrži po jedan ulaz - deskriptor za svaki segment u virtuelnom prostoru, ali taj deskriptor ne sadrži baznu adresu, već samo granicu (*limit*), i to izraženu u broju korišćenih stranica tog segmenta.
 
-> [!IMPORTANT] 
-> Ako želimo da FreeRTOS *Interrupt safe* API funkcija modifikuje vrednost ovog parametra u zavisnosti od toga da li treba izvršiti zamenu konteksta ili ne, pre poziva API funkcije u okviru prekidne rutine vrši se inicijalizacija `BaseType_t xTaskWoken = pdFALSE`.  
-> 
-> Ako želimo da se u nakon završetka prekidne rutine izvrši zamena konteksta onda se na kraju prekidne rutine poziva `portYIELD_FROM_ISR(xTaskWoken)`.
->   - ako je vrednost parameter setovana na `pdTRUE` vrši se zamena konteksta
->   - ako je vrednost parameter setovana na `pdFALSE` ne vrši se zamena konteksta.
->
-> Ako nam vrednost `pxHigherPriorityTaskWoken` parametar nije bitan, onda se prosleđuje vrednost `NULL`.
+Za svaki segment svakog procesa postoji **tabela preslikavanja stranica** (*page map table*, PMT). Deskriptor alociranog segmenta u SMT ukazuje na početak PMT za taj segment tog procesa. PMT ima po jedan ulaz za svaku stranicu unutar jednog segmenta, taj ulaz sadrži broj okvira fizičke memorije u koji je stranica smeštena (*null* ako ta stranica nije alocirana).
 
-## Deljena memorija i *mutex* semafori
+MMU izračunava adresu deskriptora segmenta na osnovu broja segmenta u virtuelnoj adresi i vrednosti registra u SMTP, a zatim dovlači deskriptor sa te adrese iz memorije i proverava da li je broj stranice iz virtuelne adrese prekoračio granicu segmenta (izuzetak se obrađuje kao i ranije). Iz deskriptora segmenta se dobija adresa početka PMT-a. Na osnovu broja stranice i te adrese, kao i veličine deskriptora stranice izračunava se adresa deskriptora stranice i on se dohvata iz memorije. Ako je deskriptor stanice *null* procesor signalizira poseban izuzetak, **straničnu grešku** (page fault).
 
-Pod **deljenom memorijom** podrazumevamo deo adresnog prostora platforme kome se pristupa iz dva ili više *task*-ova. Deljena memorija se može koristiti kao jedan vid komunikacije među *task*-ovima u sistemu.
+Iz deskriptora stranice uzima se broj okvira u koji je stranica smeštena. Pošto je stranica iste veličine kao i okvir, pa je pomeraj stanice isti kao i pomeraj u odnosu na početak okvira, pomeraj iz virtuelne adrese se nadovezuje s desne strane na dobijeni broj okvira, da bi se konačno dobila fizička adresa. 
 
-***Mutex* semafori** omogućavaju atomičnost operacije nad deljenom memorijom u okviru softvera baziranog na RTOS. Kada koristimo neki oblik deljene memorije treba joj dodeliti *Mutex* semafor koji omogućava da u jednom posmatranom trenutku samo jedan *task* ima pristup deljenoj memoriji (*Consumer* ili *Producer*).
+Svi okviri ravnopravni u fizičkoj memoriji tako da se bilo koja stranica može se smestiti u bilo koji okvir. Nema eksterne fragmentacije, jer se alociraju blokovi iste veličine. Dok postoji interna fragmentacija, jer unutar stranice može postojati neiskorišćen deo.
 
-Ukoliko *task* pokuša da pristupi deljenoj memoriji dok neki drugi *task* obavlja operaciju nad deljenom memorijom, *task* će se blokirati. *Task* će se odblokirati onda kada *task*, koji je zauzeo *mutex* semafor, oslobodi *mutex* semafor.
+**Stranična organizacija** - Hardverska podrška za (fizičke) segmente zapravo uopšte nije neophodna. Za pojam logičkog segmenta i segmentnu organizaciju virtuelnog adresnog prostora mogu da znaju samo prevodilac/asembler i OS.
 
-*Mutex* semafori podržavaju mehanizam inverzije prioriteta. Sprečavaju da se *task* manjeg prioriteta izvrši ukoliko je *task* većeg prioriteta blokiran na *mutex*-u.
+Logički (virtuelni) adresni prostor procesa se podeli na **stranice** (*page*) iste veličine (uvek stepen dvojke). Fizička memorija je logički podeljena na **okvire** (*frame*) veličine jednake veličini stranice. 
 
-> [!IMPORTANT] 
-> Onaj ko je uzeo *mutex* semafor mora taj semafor i da oslobodi. Ovo nije slučaj sa binarnim semaforom. Binarni semafor se koristi za signaliziranje događaja dok se *mutex* se koristi kako bi se ostvarila atomičnost kritičnih sekcija u kodu.
+Virtuelna adresa ima dva polja: broj stranice i pomeraj (*offset*) unutar stranice. Za svaki proces OS organizuje samo **tabelu preslikavanja stranica** (*page map table*, **PMT**). Registar **PMTP** (*PMT pointer*) procesora ukazuje na PMT tekućeg procesa. PMT ima po jedan ulaz za svaku stranicu celog virtuelnog adresnog prostora (**deskriptor stranice**). 
 
-Kako bi omogućili korišćenje *mutex* semafora u okviru `FreeRTOSConfig.h` fajla moramo podesiti sledeći makro:
+MMU izračunava adresu deskriptora stanice na osnovu broja stranice i vrednosti registra PMTP i dovlači deskriptor stranice sa te adrese operativne memorije. Ako je u deskriptoru stranice null, procesor signalizira poseban izuzetak, tzv. **straničnu grešku** (*page fault*). Iz deskriptora stranice uzima se broj okvira u koji je stranica smeštena. Pošto je stranica iste veličine kao okvir, pa je i pomeraj unutar stranice isti kao pomeraj u odnosu na početak okvira, pomeraj se samo konkatenira s desne strane na broj okvira da bi dobila fizička adresa.
 
-```c
-#define configUSE_MUTEXES 1 
-```
+**Heš tabela** je struktura koja rešava problem preslikavanja ključeva u vrednosti (broja stranice u broj okvira), u kom je domen ključeva ogroman (ukupan skup stranica u celom virtuelnom adresnom prostoru), ali je podskup ključeva koji se pojavljuju u stvarnom preslikavanju relativno mali u odnosu na ceo domen (skup alociranih stranica).
 
-Prvi korak pri radu sa *mutex* semaforom jeste da izvršimo kreiranje *mutex* semafora korišćenjem sledeće API funkcije:
+Ideja za rešenje je da se sama PMT logički podeli u više nivoa, tako da PMT jednog nivoa predstavlja indeks tabela narednog nivoa. Za oblast koje proces uopšte nije alocirao, a koje pokriva jedan ceo ulaz u PMT jednog nivoa, PMT narednog nivoa za taj ulaz uopšte ne treba alocirati, taj ulaz ima vrednost *null*. Polje sa brojem stranice u virtuelnoj adresi je sada podeljeno na više polja koja obezbeđuju ulaz u PMT svakog nivoa. 
 
-```c
-SemaphoreHandle_t xSemaphoreCrateMutex(void);
-```
+Problem: jedan efektivni pristup virtuelnoj memoriji vrši dva ili više pristupa fizičkoj memoriji, što višestruko usporava rad procesora sa memorijom. Rešenje: U procesoru (kao deo MMU) se organizuje memorija koja je relativno mala po kapacitetu (mnogo manja od operativne memorije), ali brza po vremenu pristupa, koja služi kao keš za deskriptore - tzv. ***Translation Lookaside Buffer* (TLB)**. TLB sadrži podskup deskriptora koji su nedavno korišćeni. MMU kada treba da preslika virtuelnu adresu najpre je traži u TLB.
 
-Ukoliko prilikom kreiranja funkcija vrati `NULL` to znači da semafor nije uspešno kreiran (verovatno zbog nedostatka resursa u sistemu), u suprotnom *mutex* semafor uspešno kreiran i da ga možemo koristiti.
+TLB ni na koji način ne menja semantiku preslikavanja, već ga samo ubrzava, pa bi zato u principu bio potpuno transparentan za softver (i jeste za procese), osim jednog detalja. Ceo sadržaj TLB-a ima samo opseg važenja tekućeg procesa, pa se mora proglasiti nevalidnim prilikom promene konteksta. Ovo mora da uradi OS kada vrši promenu konteksta instrukcijom koju procesor mora da obezbedi u tu svrhu. Druga mogućnost jeste da TLB sadrži deskriptore različitih procesa, uz koje pamti i informaciju tome kom preslikavanju pripada svaki deskriptor.
 
-Funkcije za zauzimanje i oslobađanje *mutex* semafora su iste kao i funkcije za zauzimanje i oslobađanje binarnog semafora.
+**Zaštita** - postoji potreba da se proces zaštiti od samog sebe tj. od sopstvenih instrukcija, odnosno od sopstvenih grešaka zbog korupcije:
 
-## Softverski tajmeri
+- da ne pristupa nealociranim delovima virtuelnog adresnog prostora
 
-**Softverski tajmeri** se u FreeRTOS-u koriste kako bi se zakazalo izvršavanje neke funkcionalnosti u određenom vremenskom trenutku ili u slučaju da je potrebno periodično izvršavanje određene funkcionalnosti.
+- da ne menja sopstvene instrukcije ili podatke koji su namenjeni samo za čitanje
 
-Period softverskog tajmera je vreme proteklo od trenutka startovanja tajmera do trenutka početka izvršavanja tajmerske *callback* funkcije. Postoje dve vrste softverskih tajmera u FreeRTOS-u:
+- da stek ne prekorači svoju granicu i ne pregazi ostale podatke i instrukcije
 
-- ***One-shot timer*** - jednom kada se startuje tajmerska *callback* funkcija se poziva samo jednom nakon isteka periode tajmera
-- ***Auto-reload timer*** - jednom kada se startuje tajmerska *callback* funkcija se poziva periodično nakon isteka tajmera.
 
-Funkcionalnost softverskog tajmera je opciona u FreeRTOS-u. Ukoliko želimo da koristimo ovu 
-funkcionalnost neophodno je:
+U deskriptoru fizičkog segmenta/stranice nalazi se **informacija o pravima pristupa** do datog fizičkog segmenta/stranice: 
 
-1. U okviru projekta uključiti FreeRTOS source fajl pod nazivom `timers.c` 
+- X (*execute*) - dozvoljeno je izvršavanje sadržaja, tj. pristup u ciklusima čitanja, ali samo tokom faze dohvatanja instrukcije u procesoru (važi samo za programski kod, odnosno logičke segmente sa instrukcijama)
 
-```c
-#include "timers.c"
-```
+- R (*read*) - dozvoljeno je čitanje sadržaja, tj. pristup u ciklusima čitanja, ali samo tokom faze izvršavanja instrukcije u procesoru (važi za podatke)
 
-2. U `FreeRTOSConfig.h` fajlu setovati `configUSE_TIMERS` makro na vrednost `1`
+- W (*write*) - dozvoljen je upis sadržaja, tj. pristup u ciklusima upisa, ali samo tokom faze izvršavanja instrukcije u procesoru (važi za podatke)
 
-```c
-#define configUSE_TIMERS 1
-```
 
-Funkcija koja se izvršava od strane softverskog tajmera naziva se tajmerska *callback* funkcija. Funkcionalnost ove funkcije definiše korisnik, ne vraća vrednost i kao jedini argument prima instancu tajmera `TimerHandle_t` kome je ova funkcija dodeljena (koji je pozvao ovu *callback* funkciju).
+Procesor mora da podrži (najmanje) dva režima rada:
 
-```c
-void ATimerCallback(TimerHandle_t xTimer);
-```
+- **privilegovani** (*privileged*) ili sistemski, kernel režim - kada je u ovom režimu, procesor dozvoljava sve instrukcije i pristup do svih programskih dostupnih registara; kernel kod se izvršava u ovom režimu
 
-> [!NOTE]
-> Funkcionalnost koju tajmerska *callback* funkcija realizuje mora biti jednostavna kako bi se što pre izvršila.
+- **neprivilegovani** (*non-privileged*) ili korisnički režim - u ovom režimu neki programski dostupni registri nisu dostupni instrukcijama, tj. instrukcije ne smeju da im pristupe, kao da ti registri ne postoje; u ovom režimu izvršava se kod korisničkih procesa
 
-Tajmerska callback funkcija se izvršava iz konteksta FreeRTOS sistemskog "Deamon" (pozadinskog) *task*-a. Vrednošću `configTIMER_TASK_PRIORITY` makroa u `FreeRTOSConfig.h` fajlu setujemo prioritet "Deamon" *task*-a. Vrednošću `configTIMER_TASK_STACK_DEPTH` makroa u `FreeRTOSConfig.h` fajlu setujemo veličinu steka koju želimo da dodelimo ovom *task*-u. 
+Procesor prelazi iz neprivilegovanog u privilegovani režim pri sistemskom pozivu, kada korisnički proces traži neku uslugu kernela ili kada instrukcija koju procesor izvršava generiše bilo koji izuzetak. Procesor tada treba da pređe na izvršavanje instrukcija koda kernela koje izvršavaju zahtev zatražen tim sistemskim pozivom ili obrađuju taj izuzetak.
 
-U slučaju kontrole funkcionalnosti tajmera (start, stop, reset, ...), "Deamon" *task* čita komande iz **tajmerskog *queue*-a**. Kreira se automatski pri startovanju FreeRTOS *Scheduler*-a, a dužina ovog *queue*-a određena je vrednošću `configTIMER_QUEUE_LENGTH` makroa u `FreeRTOSConfig.h` fajlu.
+Instrukcija skoka kojom se izvršava sistemski poziv mora da izvrši implicitni skok, memorijskim indirektnim adresiranjem, preko adrese koja je sadržana negde u memoriji, zapravo preko pokazivača na kod potprograma na koji se skače, a ne direktnim adresiranjem odredišta skoka. Negde u memoriji kernel organizuje posebnu strukturu, **vektor tabelu** (*vector table*, **VT**), koja ima po jednu adresu (vektor, pokazivač na lokaciju) koda kernela koji obavlja određenu operaciju. Za svaki tip izuzetka koji može generisati hardver procesora pridružuje (predefinisano, nepromenljivo) po jedan broj ulaza u vektor tabeli. Instrukcija sistemskog poziva kao svoj operand takođe ima broj ulaza u VT.
 
-> [!WARNING]
-> Iz tajmerske *callback* funkcije se ne smeju pozivati FreeRTOS api funkcije koje mogu izazvati blokiranje *task*-a. U tom slučaju bi došlo do blokiranja "Deamon" *task*-a.
+Da bi mogao da pronađe adresu koda koji obrađuje izuzetak ili sistemski poziv, procesor mora imati informaciju o adresi početka VT u memoriji - **pokazivač na tabelu vektora** (*vector table pointer*, **VTP**). Vektor tabelu kernel formira u posebnom delu operativne memorije koji je samo pod njegovom kontrolom i samo njemu dostupan, a nedostupan korisničkim procesima (potrebna zaštita prostora kernela od korisničkih procesa).
 
-Pre korišćenja mora se kreirati softverski tajmer, on se može kreirati pre startovanja *Scheduler*-a ili iz konteksta *task*-a.
+Kernel mapira svoj deo memorije u virtuelni adresni prostor svakog procesa, na isto mesto, ali označava taj prostor kao nedozvoljene za bilo kakav pristup u neprivilegovanom režimu rada procesora,
 
-```c
-TimerHandle_t xTimerCreate(const char * const pcTimerName
-                           TickType_t xTimerPeriodInTicks,
-                           UBaseType_t uxAutoReload,
-                           void* pvTimerID,
-                           TimerCallbackFunction_t pxCallbackFunction);
-```
+Prenos parametara u sistemski poziv:
 
-| Parametar             | Opis |
-| --------------------- | ---- |
-| `pcTimerName`         | Naziv tajmera. |
-| `xTimerPeriodInTicks` | Period tajmera izražen u sistemskim tikovima. Ukoliko želimo da umesto sistemskih tikova definišemo apsolutno vreme u ms, možemo iskoristiti makro funkciju `pdMS_TO_TICKS` koja prima vrednost u ms-ma i vraća odgovarajući broj u sistemskim tikovima. |
-| `uxAutoReload`        | Ukoliko je vrednost ovog parametra `pdTRUE` kreira se auto-reload softverski tajmer. Ukoliko je vrednost ovog parametra `pdFALSE` kreira se one-shot softverski tajmer. |
-| `pvTimerID`           | Svakom kreiranom tajmeru se dodeljuje jedinstvena vrednost. Posredstvom ovog parametra može se dohvatiti ta vrednost. |
-| `pxCallbackFunction`  | Prethodno definisana tajmerska *callback* funkcija.
+- kroz registre opšte namene, svaki sistemski poziv očekuje određene parametre u određenim registrima
 
-Tajmer se kreira u neaktivnom stanju. Startovanje softverskog tajmera realizuje se korišćenjem sledeće API funkcije:
+- preko steka korisničkog procesa, odakle ih kernel može pročitati
 
-```c
-BaseType_t xTimerStart(TimerHandle_t xTimer, TickType_t xTicksToWait);
-```
+- u nekoj strukturi u memoriji, u kojoj kernel očekuje parametre složene po određenom formatu
 
-| Parametar      | Opis |
-| -------------- | ---- |
-| `xTimer`       | Instanca prethodno kreiranog tajmera |
-| `xTicksToWait` | Broj sistemskih tikova koje će *task* provesti u blokiranom stanju ukoliko nije moguće startovati tajmer |
+### Deljenje memorije
 
-Ukoliko je komanda "startuj tajmer" uspešno poslata u tajmerski *queue* funkcija vraća `pdPASS`, a suprotnom vraća `pdFALSE`. Ukoliko se tajmer startuje iz prekidne rutine potrebno je koristiti `xTimerStartFromISR`.
+Tehnika **dinamičkog učitavanja** podrazumeva da proces alociran iz fajla učitava ovakve delove samo ako su stvarno potrebni, i onda kada su potrebni, odnosno kada se takva situacija zaista i dogodi. Obaveza OS-a je samo da  obezbedi uslugu (sistemski poziv) koji alocira deo (virtuelnog) adresnog prostora, kao i uslugu kojom u dati prostor procesa učitava sadržaj nekog binarnog fajla.
 
-Zaustavljanje softverskog tajmera realizuje se korišćenjem sledeće API funkcije:
+Tehnika **preklopa** (*overlays*) podrazumeva da se moduli u kojima su grupisani potprogrami i/ili podaci koji se koriste zajedno, a u alternaciji sa drugim takvim modulima, dinamički učitavaju u memoriju (i izbacuju iz nje) na isto mesto, preklapajući se, pošto nikada nisu potrebni istovremeno. 
 
-```c
-BaseType_t xTimerStop(TimerHandle_t xTimer, TickType_t xTicksToWait);
-```
+Ako neki modul koji se preklapa sadrži podatke koji se menjaju, pre nego što se na njegovo mesto potprogram učita neki drugi modul, mora da sačuva sadržaj izbačenog modula njegovim upisom u neki fajl, ako će taj modul biti ponovo kasnije potreban.
 
-| Parametar      | Opis |
-| -------------- | ---- |
-| `xTimer`       | Instanca prethodno kreiranog tajmera |
-| `xTicksToWait` | Broj sistemskih tikova koje će *task* provesti u blokiranom stanju ukoliko nije moguće zaustaviti tajmer |
+Obaveza OS-a je i dalje samo to da obezbedi uslugu (sistemski poziv) koji alocira deo (virtuelnog) adresnog prostora procesa, kao i uslugu kojom dati prostor procesa učitava sadržaj nekog binarnog fajla i sadržaj iz memorije upisuje u neki fajl.
 
-Ukoliko je komanda "zaustavi tajmer" uspešno poslata u tajmerski *queue* funkcija vraća `pdPASS`, a u suprotnom vraća `pdFALSE`. Ukoliko se tajmer zaustavlja iz prekidne rutine potrebno je koristiti `xTimerStopFromISR`.
+**Logičko deljenje memorije** - u multiprocesnim sistemima je česta situacija da se kreira više procesa nad istim programom, kako se kod ne menja, a isti je u svim procesima, svi ti procesi onda mogu da dele jednu jedinu kopiju programskog koda u fizičkoj memoriji. Ako je PMT u više nivoa, a neka tabela sadrži samo stranice logičkih segmenata sa kodom, onda ovi procesi mogu koristiti istu kopiju te tabele. 
 
-## *Queue*
+Isto važi i za podatke ukoliko procesi ne menjaju te podatke. Ukoliko neki od procesa želi da promeni neke podatke, tada se pravi stvarna fizička kopija. Ova tehnika se naziva **kopiranje pri upisu** (*copy on write*).
 
-Jedan od načina da se realizuje komunikacija između *task*-ova, ali i između *task*-ova i prekidne rutine, jeste korišćenjem objekta kernela RTOS pod nazivom ***Queue***. To je zapravo FIFO struktura tj. podaci se dodaju na kraj reda a čitaju se sa početka reda (*Thread-safe* struktura).
+Postoji ponekad potreba da bilo koji procesi, čak i oni koji ne izvršavaju isti program, dele određeni segment memorije povodom razmene informacija.
 
-Komunikacija bazirana na korišćenju *queue*-a podrazumeva da postoji neko (*task* ili ISR) koji upisuje elemente u *queue* (*producer*) i da postoji neko (*task* ili ISR) ko čita ono što je upisano u *queue* (*consumer*). Može da postoji više *producer*-a i više *consumer*-a koji koriste isti *queue*.
+**Deljenje biblioteke** - u multiprocesnim sistemima je vrlo čest slučaj da više procesa koriste iste biblioteke. Ne deli se kod celog programa, nego samo deo (kod jedne biblioteke). Taj kod treba povezati dinamički sa ostatkom programa koji koristi usluge te biblioteke. Zato se ovakve biblioteke nazivaju **(deljene) biblioteke sa dinamičkim vezivanjem** (*/shared/ dynamic linking libraries*, **DLL**).
 
-Pri radu sa queue-om kao prvi korak neophodno je kreirati *queue*. Obično se prilikom kreiranja 
-specificiraju vrednosti dva parametra:
-- ***queue item size*** - veličina jednog elementa unutar *queue*-a
-- ***queue length*** - maksimalan broj elemenata koji može biti unutar *queue*-a
+**Zamena procesa** je tehnika gde se jedan proces izbacuje (*swap out*) iz memorije, a drugi učitava, ubacuje (*swap in*) u memoriju. Savremeni OS rade zamenu celih procesa (*swapping*) samo u izuzetnim situacijama kada je opterećene sistema veliko.
 
-Elementi *queue*-a mogu biti različiti tipovi podataka:
-- ugrađeni tipovi podataka (int, char, ...)
-- korisnički definisani tipovi podataka (strukture)
+**Učitavanje stranice na zahtev** (*demand paging*) - ako neki deo virtuelnog adresnog prostora proces uopšte ne koristi tokom svog izvršavanja, te stranice neće nikada biti učitane. Za razliku od dinamičkog učitavanja, ovaj mehanizam je potpuno transparentan za proces i semantiku njegovog izvršavanja, jer ceo posao obavlja OS uz podršku hardvera.
 
-> [!NOTE]
-> Ukoliko u *queue* upisujemo "složenije" poruke preporučljivo je kreirati strukturu, instancirati objekat te strukture, inicijalizovati polja tog objekta i upisati ga u *queue*.
+**Zamena stranica** - U slučaju da u memoriji nema ni jednog slobodnog okvira tražena stranica će da "preotme" okvir neke druge stranice. Na taj način stranice vremenski dele fizičku memoriju. 
 
-Upisivanje podataka u *queue* vrši se na jedan od dva načina:
+Procesori često imaju sledeću hardversku podršku: u deskriptoru stranice u PMT koriste jedan bit, tzv. **bit zaprljanosti** ili bit modifikacije (*dirty bit*, *modify bit*) koji MMU postavlja na 1 svaki put kada se izvrši operacija upisa u neku reč te stranice. Prilikom izbacivanja stranice, ukoliko je taj bit 0, sadržaj stranice nije potrebno snimati.
 
-- Umesto sadržaja podatka u *queue* se upisuje pokazivač na podatak (prosleđivanje po referenci).
-Brži upis ali moramo čuvati podatak na predajnoj strani sve dok ga prijemna strana ne obradi.
+Prostor na disku u koji OS snima izbačene stranice i sa kog ih ponovo učitava naziva se **prostor za zamenu** (*swap space*). Taj prostor se može organizovati unutar nekog **fajla** koji se konfiguracijom OS-a odredi za tu namenu ili na posebnoj particiji na disku koja služi samo za tu namenu i na kojoj nije instaliran fajl sistem, na tzv. **presnoj particiji** (*raw partition*).
 
-- Kopiranje sadržaja podatka u *queue* (prosleđivanje po referenci). Sporiji upis ali čim smo podatak upisali u *queue* ne moramo više da brinemo o njemu.
+**Algoritam zamene stranica** (*page replacement algorithm*), tj. algoritam koji bira stranicu žrtvu" za izbacivanje, je vrlo značajan za efikasnost sistema. Sistemi najčešće primenjuju neku varijantu aproksimacije LRU algoritma (*least recently used*). Za potrebe ovog algoritma hardver procesora treba da podrži još jedan bit u deskriptoru stranice, tzv. **bit referenciranja** (*reference bit*) koji MMU postavlja prilikom svake operacije sa stranicom (i čitanja i upisa).
 
-Blokiranje taska koji vrši operaciju nad queue-om je moguće:
+Sistem može da uđe u režim u kom se stranične greške dešavaju izuzetno često, iskorišćenje procesora je jako nisko, dok ulazno-izlazni podsistem za operacije sa diskom postaje preopterećen. Ovakva loša situacija naziva se **batrganje (*thrashing*)** i dobar OS mora da se štiti od nje
 
-- Ukoliko se upisuje u pun *queue* (*task* će se odblokirati kada *consumer* pročita prvu poruku)
+## Upravljanje procesima
 
-- Ukoliko čita iz praznog *queue*-a (*task* će se odblokirati kada *producer* upiše prvu poruku)
+### Procesi i niti
 
-Dakle, pored toga što se *queue* može koristiti kako bi se ostvarila **komunikacije** *queue* se može koristiti i kako bi se ostvarila i **sinhronizacija** između taskova koji čekaju na neki podatak.
+**Proces** je jedno izvršavanje nekog programa sa jednim (virtuelnim) adresnim prostorom. Ti procesi se izvršavaju uporedo (konkurentno) na jednom procesoru ili na više procesora (multiprocesiranjem). Procesi pokrenuti na sistemu mogu biti **interaktivni** ili **pozadinski**.
 
-Kao prvi korak u procesu korišćenja *queue*-a neophodno je kreirati *queue* koji se kreira pozivom sledeće FreeRTOS API funkcije:
+**Tok kontrole** (*control flow* ili *flow of control*) - redosled sekvencijalnog izvršavanja instrukcija, jedne po jedne, u kom iza prethodne sledi sledeća koja je odmah iza nje u memoriji osim ako instrukcija ne uradi drugačije. 
 
-```c
-QueueHandle_t xQueueCreate(UBaseType_t uxQueueLength, UBaseType_t uxItemSize);
-```
+**Stanje** (*state*) registara procesora i lokacija memorije, adresiranih adresama koje generiše instrukcija raspoloživim načinima adresiranja, pri čemu stanje koje za sobom ostavi prethodno izvršena instrukcija u toku kontrole, sledeća instrukcija u tom toku zatiče u registrima ili lokacijama memorije.
 
-| Parametar        | Opis |
-| ---------------- | ---- |
-| `uxQueueLength`  | Maksimalan broj elemenata u *queue*-u |
-| `uxItemSize`     | Veličina jednog elementa u okviru *queue*-a |
+**Promena konteksta** je postupak koji obavlja OS i koji ovo obezbeđuje. Pre nego što procesor pređe na izvršavanje instrukcija drugog procesa OS sačuva stanje registara procesa čije izvršavanje se prekida, a potom restaurira stanje registara procesa na čije izvršavanje prelazi.
 
-Ukoliko postoje problemi sa kreiranjem *queue*-a vraća se `NULL`, najčešće problem postoji zbog nedovoljne memorije na platformi. Ukoliko je *queue* uspešno kreiran vraća se instanca strukture (*handler*) `QueueHandle_t` koja se koristi kako bi se pristupilo kreiranom *queue*-u.
+Jedan proces može kreirati nov proces sistemskim pozivom, proces roditelj kreira proces dete. Proces može kreirati proizvoljno mnogo novih procesa sistemskim pozivima. Sistemski poziv može biti takav da se proces kreira nad zadatim programom, uz opcioni prenos argumenata. U takvim sistemskim pozivima nov proces dete izvršava zadati program sa svojim novim adresnim prostorom, inicijalizovanim prema sadržaju exe fajla. 
 
-Upis u *queue* je moguće realizovati posredstvom jedne od dve funkcije
+Na sistemima nalik Unix proces roditelj kreira nov proces dete sistemskim pozivom `fork` (račva). Ovaj sistemski poziv kreira identičnu kopiju ("klon") procesa roditelja. Ukoliko ovaj sistemski poziv uspe postoje dva toka kontrole koja nastavljaju svoja izvršavanja povratkom iz funkcije `fork`. Celobrojna vrednost identifikatora procesa je jedinstvena identifikacija koja se kasnije upotrebljava kao argument sistemskih poziva za operacije nad procesom koji se sa tim identifikatorom identifikuje. `Fork` vraća 0 u kontekstu (toku kontrole) procesa deteta, a vrednost veću od 0 u kontekstu roditelja (*process id*, pid). 
 
-- Funkcijom koja dodaje elemente **na početak reda**:
+Pored sistemskog poziva fork, sistemi nalik sistemu Unix poseduju sistemski poziv `exec`, tj. čitavu familiju sličnih funkcija sa istim efektom, uz varijaciju parametara. Ne kreira se nikakav nov proces, kao entitet u OS-u, već se ceo postojeći memorijski kontekst tekućeg procesa (onog koji je pozvao `exec`) potpuno odbacuje i iznova inicijalizuje iz zapisa u exe fajlu koji je zadat parametrom ovog poziva i započne tok kontrole ispočetka, izvršavanjem programa u tom exe fajlu.
 
-```c
-BaseType_t xQueueSendToFront(QueueHandle_t xQueue,
-                             const void* pvItemToQueue,
-                             TickType_t xTicksToWait);
-```
+Proces može ugasiti sebe eksplicitnim zahtevom, odnosno tražiti završetak (termination) svog izvršavanja sistemskim pozivom `exit`. Ovaj sistemski poziv prima jedan parametar koji ima značenje "informacije o statusu" koji OS prenosi roditeljskom procesu procesa koji se gasi. Prema konvenciji vrednost 0 označava "regularan završetak". Interpretacija ove vrednosti je u svakom slučaju na roditeljskom procesu, a on taj status može dobiti preko sistemskog poziva `wait`. Parametar status ovog poziva se prenosi pokazivač na celobrojnu promenljivu u koju će ovaj sistemski poziv upisati status procesa deteta po njegovom gašenju.
 
-- Funkcijom koja dodaje elemente **na kraj reda**:
+Operativni sistemi po pravilu omogućavaju i to da jedan proces ugasi neki drugi proces sistemskim pozivu. Ovaj sistemski poziv se tradicionalno naziva `kill`. Ovaj sistemski poziv na sistemima nalik sistemu Unix ne predstavlja eksplicitnu operaciju gašenja procesa, već zahtev za slanjem signala navedenom odredišnom procesu. **Signal** je prosta informacija o identifikaciji nekakve proste poruke, tipično jednostavna celobrojna vrednost.
 
-```c
-BaseType_t xQueueSendToBack(QueueHandle_t xQueue,
-                            const void* pvItemToQueue,
-                            TickType_t xTicksToWait);
-```
+**Nit (thread)** predstavlja tok kontrole koji teče uporedo sa drugim tokovima kontrole, ali koji deli virtuelni adresni prostor sa nekim drugim tokom ili tokovima kontrole (nitima). Svaka nit ima svoj kontekst izvršavanja, svoje stanje registara procesora (uključujući PC i SP) i svoj stek. Sa druge strane, nekoliko niti može da deli zajednički ostatak adresnog prostora (osim steka), kao i resurse operativnog sistema (otvoreni fajlovi, standardni ulazni i izlazni uređaji, ...).
 
-| Parametar        | Opis |
-| ---------------- | ---- |
-| `xQueue`         | Instanca prethodno kreiranog *queue*-a |
-| `pvItemToQueue`  | Pokazivač na podatak koji će biti kopiran u queue |
-| `xTicksToWait`   | Ukoliko je *queue* pun ovim parametrom se specificira koliko vremena će *task* provesti u blokiranom stanju |
+Motiv za korišćenje nit je uporedo obavljanje nekih aktivnosti ili obrada, ili reakcije na događaje iz okruženja koji se dešavaju asinhrono. Svakoj aktivnosti ili obradi događaja posvećuje se poseban tok kontrole koji predstavlja sekvencijalno izvršavanje, a koji se bavi samo tom aktivnošću ili obradom događaja. OS vodi računa o tome da uporedne tokove kontrole rasporedi na više procesora, ako postoje, kako bi se izvršavale paralelno. Ovakvi tokovi kontrole obrađuju neke deljene strukture podataka, razmenjuju informacije preko tih podataka i izvršavaju iste potprograme. 
 
-Funkcije vraćaju `pdPASS` ukoliko je element uspešno kopiran u *queue*. Ukoliko je *queue* pun i isteklo je vreme koje je specificirano da *task* provede u blokiranom stanju funkcije vraćaju `errQUEUE_FULL`.
+### Implementacija procesa niti
 
-Ukoliko se funkcije pozivaju iz konteksta prekidne rutine potrebno je koristiti njihove implementacije koje se završavaju sa `FromISR` (`xQueueSendToBackFromISR` i `xQueueSendToFromFromISR`).
+**Preotimanje** (*preemption*) je situacija u kojoj procesor izvršava instrukcije jednog procesa, dogodi se nešto zbog čega neki drugi proces može da nastavi izvršavanje i on treba da preuzme procesor što pre, jer je njegova reakcija važnija od onoga što radi tekući proces, ne čekajući da se proces odrekne procesora sistemskim pozivom. Da bi se izvršila promena konteksta, neophodno je da procesor pređe na instrukcije koje pripadaju kodu kernela i koje izvršavaju promenu konteksta.
 
-Čitanje iz *queue*-a je moguće korišćenjem sledeće funkcije:
+Događaj za promenu konteksta može biti signaliziran posebnim hardverskim signalom koji predstavlja spoljašnji **zahtev za prekid** (*interrupt request*). Kada stigne zahtev za prekid, procesor završava tekuću instrukciju, i u principu radi isto što i kod obrade izuzetka: čuva kontekst (neke od programski dostupnih registara) na steku i prelazi na izvršavanje posebnog programa za obradu prekida - **prekidne rutine** (*interrupt routine*). Procesori po pravilu omogućuju da se programskim putem, odgovarajućim instrukcijama, zabrane spoljašnji prekidi - tzv. **maskiranje prekida** (*interrupt masking*). Prekid se prihvata samo ako nije selektivno ili globalno maskiran, ako jeste prekid se prosto ignoriše.
 
-```c
-BaseType_t xQueueReceive(QueueHandle_t xQueue, 
-                         void * const pvBuffer, 
-                         TickType_t xTicksToWait);
-```
+Informacije koje OS vodi o svakom procesu nazivaju se i **kontekstom procesa** (process context) i sadrže svojstva (atribute) svakog procesa:
 
-Funkcija vraća `pdPASS` ukoliko je element uspešno pročitan. Ukoliko je *queue* prazan i isteklo je vreme koje je specificirano da *task* provede u blokiranom stanju funkcija vraća `errQUEUE_EMPTY`.
+- identifikator procesa (*process ID*, pid)
 
-Ukoliko se funkcije poziva iz konteksta prekidne rutine potrebno je koristiti njenu implementaciju koja se završava sa `FromISR` (`xQueueReceiveFromISR`).
+- kontekst procesora ili kontekst izvršavanja
 
-## Grupa događaja
+- informacije potrebne za raspoređivanje procesa na procesoru (*scheduling context*)
 
-**Grupa događaja** predstavlja mehanizam signalizacije pojave jednog ili više događaja karakterističan za FreeRTOS.
+- memorijski kontekst za virtuelni adresni prostor procesa
 
-Mehanizam "Grupa događaja" omogućava:
-- Sinhronizaciju više *task*-ova
-- Broadcasting događaja na više *task*-ova
-- Blokiranje jednog ili više *task*-ova do trenutka generisanja jednog ili kombinacije događaja  
-- Redukovanje količine memorije koja se koristi od strane FreeRTOS-a jer više semafora, koji su korišćeni za signalizaciju više događaja, sada možemo zameniti samo jednom instancom grupe događaja.
+- deskriptori resursa koje je proces alocirao
 
-> [!NOTE]
-> Ukoliko želimo da koristimo grupu događaja potrebno je u okviru projekta kompajlirati fajl `event_groups.c`.
+- "knjigovodstvo" (*accounting*) - evidencija korišćenja resursa računara i operativnog sistema
 
-Grupa događaja je realizovana kao niz boolean vrednosti. Informacija o pojavi nekog događaja (stanje događaja) čuva se u okviru jednog bita (*Event flag*). Vrednost 1 označava da je došlo do generisanja događaja dok vrednost 0 označava da se događaj nije generisao. Ove binarne vrednosti koje čuvaju stanje događaja su deo promenljive tipa `EventBits_t`. Pri projektovanju softvera neophodno je svakom od bita dodeliti odgovarajuće značenje.
+Tradicionalno, struktura podataka kojom se predstavlja proces u sistemu naziva se **kontrolni blok procesa** (*process control block*, PCB).
 
-Broj događaja koji se čuvaju u okviru jedne promenljive tipa `EventBits_t` zavisi od toga da li je setovan `configUSE_16_BIT_TICKS`.
+Konceptualno, tokom svog životnog veka, tj. za vreme od kada je traženo njegovo kreiranje, pa dok se ne ugasi, svaki proces prolazi kroz određena **stanja**:
 
-```c
-#define configUSE_16_BIT_TICKS 1 // koristi se 8 bita  
-#define configUSE_16_BIT_TICKS 0 // koristi se 24 bita
-```
+- stanje inicijalizacije (*initializing*)
 
-Kreiranje grupe događaja se realizuje pozivom sledeće API funkcije:
+- terminalno stanje (*terminating*) - od trenutka kada je traženo gašenje procesa, dok on sasvim ne nestane iz operativnog sistema kao entitet 
 
-```c
-EventGroupHandle_t xEventGroupCreate(void);
-```
+- izvršava se (*running*) - trenutno se izvršava na procesoru
 
-Ukoliko nije moguće kreirati grupu događaja ova funkcija vraća `NULL`. Ukoliko je grupa događaja uspešno kreirana ova funkcija vraća instancu tipa `EventGroupHandle_t` koja se koristi za pristup grupi događaja.
+- spreman za izvršavanje (*ready*)
 
-Setovanje jednog ili više bita u okviru grupe događaja realizuje se pozivom sledeće API funkcije
+- suspendovan ili blokiran, čeka (*suspended*, *blocked*, *waiting*) - proces čeka na ispunjenje uslova nastavka svog izvršavanja
 
-```c
-EventBits_t xEventGroupSetBits(EventGroupHandle_t xEventGroup, const EventBits_t uxBitsToSet);
-```
+Načini na koje dolazi do promene konteksta: 
 
-| Parametar     | Opis |
-| ------------- | ---- |
-| `xEventGroup` | Instanca prethodno kreirane grupe događaja |
-| `uxBitsToSet` | Binarna maska koja specificira koje bite u okviru grupe bita treba setovati na 1 |
+- **sinhrono** - kao posledica izvršavanja same tekuće instrukcije procesa
 
-Funkcija vraća sadržaj koju promenljiva tipa `EventBits_t`, unutar grupe događaja, ima u trenutku poziva ove funkcije.
+- **asinhrono** - potpuno nezavisno od tekuće instrukcije i onoga što ona radi, u proizvoljnim, nepredvidivim trenucima vremena, kao posledica spoljašnjeg hardverskog prekida (*interrupt*)
 
-> [!WARNING]
-> Povratna vrednost ne mora imati one bite koji su specificirani promenljivom `uxBitsToSet` setovane na 1.
+Kao posledica ovih situacija procesor prelazi u privilegovani režim rada i najčešće prebacuje na drugi sistemski stek na koji ukazuje sistemski SP. Procesor takođe čuva određene programski dostupne registre prepisujući ih negde (npr. stek) i u PC upisuje adresu koju je dohvatio iz vektor tabele za dati ulaz. Nakon obrade te situacije, OS mora da povrati kontekst procesa koji je odabran za izvršavanje i vrati se na njegovo izvršavanje, tako da on nastavlja od mesta na kom je prekinut.
 
-Čekanje da jedan ili više bitova budu setovani na 1, od stane drugog taska ili prekidne rutine, realizuje se pozivom sledeće API funkcije:
+Procesorski kontekst je moguće čuvati u strukturi unutar PCB koja je za to namenjena ili na steku procesa, a samo vrednost SP sačuvati u PCB.
 
-```c
-EventBits_t xEventGroupWaitBits(const EventGroupHandle_t xEventGroup, 
-                                const EventBits_t uxBitsToWaitFor,
-                                const BaseType_t xClearOnExit,
-                                const BaseType_t xWaitForAllBits
-                                TickType_t xTicksToWait);
-```
+Pod određenim uslovima, promena konteksta se može izvršiti i bez ijedne asemblerske instrukcije, time nezavisno od procesora, korišćenjem samo standardne biblioteke jezika C čije su deklaracije u zaglavlju `setjmp.h`:
 
-| Parametar         | Opis |
-| ----------------- | ---- |
-| `xEventGroup`     | Instanca prethodno kreirane grupe događaja. |
-| `uxBitsToWaitFor` | Binarna maska koja specificira bite u grupi događaja na koje čekamo da budu setovani na vrednost 1. |
-| `xClearOnExit`    | Ovaj parametar može imati dve vrednosti: pdTRUEili pdFALSE. Ukoliko ovaj parametar ima vrednost pdTRUEizvršiće se setovanje bita, definisanih maskom uxBitsToWaitFor,  na vrednost 0. Ukoliko ovaj parametar ima vrednost pdFALSE biti ostaju 
-nepromenjeni. |
-| `xWaitForAllBits` | Ovaj parametar može imati dve vrednosti: `pdTRUE` ili `pdFALSE`. Ukoliko ovaj parametar ima vrednost `pdTRUE` *task* će ostati u stanju "*Blocked*" dok svi biti,definisani maskom uxBitsToWaitFor, ne budu setovani na 1. Ukoliko je vrednost ovog parametra `pdFALSE` *task* će ostati u stanju "*Blocked*" dok bar jedan od bita, definisanih maskom `uxBitsToWaitFor`, ne budu setovani na vrednost 1 |
-| `xTicksToWait`    | Vreme koje će *task* provesti u stanju "*Blocked*" čekajući da se neki (ili svi) biti setuju na vrednost 1 |
+- `type jmp_buf` - struktura koja sadrži polja za čuvanje vrednosti svih programski dostupnih registara koji dati prevodilac koristi na datom procesoru
 
-Ukoliko se iz funkcije izlazi kao posledica setovanja barem jednog bita (ili svih bita) definisanih maskom `uxBitsToWaitFor`, funkcija vraća vrednost koju je grupa događaja imala u trenutku kada su se stvorili uslovi da *task*, koji čeka na bite, bude odblokiran. U slučaju da je `xClearOnExit` parametar setovan funkcija vraća vrednost neposredno pre setovanja bita na vrednost 0. Ukoliko se iz funkcije izlazi kao posledica isteka vremenskog intervala definisanog parametrom `xTicksToWait`, funkcija vraća vrednost koju grupa događaja ima u tom trenutku.
+- `int setjmp` (`jmp_buf` context) - funkcija koja čuva kontekst procesora u strukturi datu parametrom i vraća 0
 
-Setovanje jednog ili više bita u okviru grupe događaja, iz prekidne rutine, realizuje se pozivom sledeće API funkcije:
+- `void longjmp` (`jmp_buf context, int value`) - restaurira kontekst dat kao argument, a koji je sačuvan pomoću setjmp 
 
-```c
-EventBits_t xEventGroupSetBitsFromISR(EventGroupHandle_t xEventGroup, 
-                                      const EventBits_t uxBitsToSet,
-                                      BaseType_t pxHigherPriorityTaskWoken);
-```
+Najefikasnije je kada OS podržava koncept niti, a izvršno okruženje onda može da preslikava niti iz programa u niti operativnog sistema, i to na različite načine:
 
-| Parametar                   | Opis |
-| --------------------------- | ---- |
-| `xEventGroup`               | Instanca prethodno kreirane grupe događaja |
-| `uxBitsToSet`               | Binarna maska koja specificira koje bite u okviru grupe bita treba setovati na 1 |
-| `pxHigherPriorityTaskWoken` | Ukoliko je vrednost ovog parametra setovana na `pdTURE` tada je potrebno izvršiti zamenu konteksta pre izlaska iz prekidne rutine |
+- jedan u jedan: svaka nit u programu implementira se jednom niti operativnog sistema
 
+- više u jedan: više niti u programu implementira se jednom niti operativnog sistema, a promenu konteksta između njih obavlja izvršno okruženje
 
-## Mehanizam notifikacije
+- više u više
 
-**Mehanizam notifikacije** *task*-a u FreeRTOS-u omogućava direktnu signalizaciju *task*-u da se desio neki događaj, ili direktnu komunikaciju sa taskom, bez upotrebe dodatnih objekata kernela (*queue*-ova, semafora, grupe događaja, ...).
+Izbor procesa za izvršavanje i te kako može da utiče na vremensko ponašanje sistema, odnosno vreme odziva i performanse celog sistema. Zato je **algoritam raspoređivanja procesa na procesoru (*process scheduling*)** izuzetno bitan element svakog kernela.
 
-Svaki kreirani *task* u FreeRTOS-u ima:
-- notifikacionu vrednost (*notification value*) - 32-bitni neoznačeni broj
-- notifikacioni status (*notification state*)
-    - može imati vrednosti *"Pending"* i *"Not-Pending"*
-    - kada *task* primi notifikaciju notifikacioni status uzima vrednost *"Pending"*. Kada task pročita notifikacionu vrednost, notifikaciono stanje uzima vrednost *"Not-Pending"*. 
+Najjednostavniji algoritam jeste opsluživanje po redosledu dolaska (first come - first served, FCFS ili FIFO). Procesor dobija proces koji je najdavnije došao u red spremnih. Međutim ovaj algoritam ima ozbiljne nedostatke, procesi koji se veoma kratko izvršavaju mogu dugo da čekaju ukoliko su ispred njih u redu procesi koji se vrlo dugo izvršavaju.
 
-Prednosti korišćenja mehanizma notifikacije
+Jedan, teorijski optimalan, ali praktično neprimenljiv u egzaktnoj formi, jeste algoritam najkraći posao prvi. U današnjim sistemima upotrebljavaju se mnogi sofisticiraniji algoritmi, od kojih značajnu grupu čine algoritmi zasnovani na prioritetima (*priority*).
 
-- Signalizacija pojave događaja ili slanje podatka *task*-u je značajno brže od korišćenja mehanizma semafora, *queue*-a ili grupe događaja
+U sistemima sa raspodelom vremena koristi se tzv. ***round robin*** algoritam. Kružno opsluživanje spremnih procesa, isto kao FIFO, ali sa ograničenim vremenskim odsečkom.
 
-- Zauzeće memorije je manje u odnosu da mehanizam signalizacije ili komunikacije sa *task*-om realizujemo koristeći semafor, *queue*, ili grupu događaja 
+### Sinhronizacija procesa
 
-Korišćenje mehanizma notifikacije nije uvek moguće zbog određenih ograničenja kojih moramo biti svesni kada pišemo softver baziran na FreeRTOS-u
+U mnogim prilikama postoji potreba da procesi interaguju, na primer tako što će razmenjivati informacije. Ovakvi procesi se nazivaju **kooperativni procesi** (*cooperating processes*). Problemi koji nastaju zbog konkurentnosti (konflikti) posledica su interakcije između uporednih tokova kontrole.
 
-- Nije moguće slanje podatka iz *task*-a u ISR (što je na primer moguće kada koristimo *queue*).
+Jedan veoma čest obrazac, model saradnje između uporednih procesa jeste tzv. model **proizvođač-potrošač** (*producer-consumer*). Jedan proces ili više njih proizvode nekakve informacije, podatke ili poruke koje treba da da proslede, a jedan ili više njih konzumiraju (troše) te informacije, podatke, pakete ili poruke koje je proizveo proizvođač.
 
-- Može postojati samo jedan *task* koji prima notifikaciju (kada koristimo grupu događaja možemo imati više *task*-ova koji primaju neku signalizaciju).
+Podrazumevano se procesi izvršavaju uporedo (*concurrently*), što znači da se sekvence njihovih instrukcija izvršavaju proizvoljno prepleteno ili čak fizički paralelno. **Paralelno** izvršavanje ili paralelizam podrazumeva fizički istovremeno izvršavanje, što je moguće samo na više procesora. **Konkurentnost** podrazumeva mogućnost takvog paralelnog izvršavanja, ukoliko za to postoje mogućnosti, a u svakom slučaju podrazumeva multiprogramiranje sa nepredvidivim načinom preplitanja izvršavanja instrukcija uporednih procesa. Kod kooperativnih sistema rezultat može zavisiti od načina prepletanja njihovih instrukcija, pa zato može biti nepredvidiv.
 
-- Ne postoji mogućnost baferisanja podataka (što je na primer moguće kada koristimo *queue*).
+Uvođenje ograničenja u pogledu načina preplitanja akcija uporednih procesa ili načina njihovog napredovanja, koja onda izvršno okruženje ili OS moraju zadovoljiti tokom uporednog izvršavanja procesa, naziva se **sinhronizacija** (*synchronization*). 
 
-- Ne postoji mogućnost implementacije *Broadcast*-a (što je na primer moguće kada koristimo grupu događaja).
+Jedan tip sinhronizacije predstavlja **uslovna sinhronizacija**: neki proces ne sme da nastavi izvršavanje iza neke tačke, tj. ne sme da izvršava neke akcije ukoliko neki drugi proces nije uradio nešto, ili ukoliko nije ispunjen neki uslov, ili ukoliko neki proces ili podatak nije u nekom potrebnom stanju i slično.
 
-- Ne postoji mogućnost blokiranja ako prethodno poslata notifikaciona vrednost nije obrađena (kada upisujemo u pun queue task koji upisuje se blokira dok se ne oslobodi jedno mesto u *queue*-u).
+Postoje sekvence instrukcija, odnosno sekcije koda uporednih procesa koja treba izvršavati nedeljivo, atomično ili, kako se najispravnije kaže izolovano, tako da njihov efekat bude takav kao da drugih procesa nema, odnosno kao da tokom njihovog izvršavanja nema interakcije sa drugim procesima i njihovog uticaja. Ovakve sekcije koda uporednih procesa nazivaju se **kritične sekcije** (*critical section*).
 
-Kada se task kreira notifikaciona vrednost je inicijalizovana na nulu. Signaliziranje pojave događaja korišćenjem mehanizma notifikacije se realizuje upotrebom `xTaskNotifyGive` i `xTaskNotifyTakeFreeRTOS` API funkcija:
+Ako jedan proces uđe u kritičnu sekciju, drugi procesi ne smeju da budu u svojim kritičnim sekcijama koje su sa tom u potencijalnom konfliktu, niti da uđu u njih. Ovakva sinhronizacija naziva se **međusobno isključenje** (*mutual exclusion*).
 
-```c
-BaseType_t xTaskNotifyGive(TaskHandle_t xTaskToNotify)
-```
+U najjednostavnijem slučaju međusobno isključenje unutar samog kernela se može obezbediti tako što se ceo kernel posmatra kao kritična sekcija. To znači da je pri svakom ulasku u kernel kod, na svim mestima, potrebno uraditi neki ulazni protokol, "zaključavanje" ulaska u kritičnu sekciju (`lock()`), a na svakom izlasku izlazni protokol "otključavanje" (`unlock()`).
 
-| Parametar       | Opis |
-| --------------- | ---- |
-| `xTaskToNotify` | Instanca prethodno kreiranog taska koja se može dohvatiti kada se *task* kreira koristeći `xTaskCreate` funkciju |
+- `lock()` - podrazumeva maskiranje spoljašnjih prekida
 
-Funkcija `xTaskNotifyGive` inkrementira notifikacionu vrednost taska koji čeka notifikaciju i menja njegov notifikacioni status u "*Pending*" (ukoliko već nije u stanju "*Pending*"). Uvek vraća `pdPass`. U slučaju da se poziva iz konteksta prekidne rutine koristiti `xTaskNotifyGiveFromISR`.
+- `unlock()` - podrazumeva demaskiranje spoljašnjih prekida
 
-```c
-BaseType_t xTaskNotifyTake(BaseType_t xClearCountOnExit, TickType_t xTicksToWait);
-```
+Ovo nije dovoljno u (simetričnim) multiprocesorskim sistemima. Jedan procesor može da uđe u kritičnu sekciju (kod kernela), maskira prekide (i time se "zaštiti od samog sebe"), ali ništa ne sprečava neki drugi procesor da uradi isto i uđe u kod kernela. Za međusobno isključenje izvršavanja na više procesora potrebna je podrška hardvera. Procesori imaju tu podršku u vidu instrukcija koje mogu da imaju vrlo različit, ali i vrlo sličan oblik i semantiku. Dva osnovna tipa ovakvih instrukcija su:
 
-| Parametar           | Opis |
-| ------------------- | ---- |
-| `xClearCountOnExit` | Ovaj parametar može imati vrednosti `pdTRUE` ili `pdFALSE`. Ukoliko parametar ima vrednost pdTRUEonda će se izvršiti setovanje notifikacione vrednosti na 0 pre izlaska iz funkcije. Ukoliko parametar ima vrednost `pdFALSE` i ako je notifikaciona vrednost veća od 0, onda se pri izlasku iz funkcije dekrementira notifikaciona vrednost |
-| `xTicksToWait` | Broj sistemski tikova koliko će task provesti u blokiranom stanju čekajući da notifikaciona vrednost postane različita od 0 |
+- `test-and-set` - atomično čita i vraća vrednost sadržaja zadate (adresirane) memorijske lokacije, a u tu lokaciju postavlja 1
+  
+- `swap` - atomično zamenjuje vrednosti registra i adresirane memorijske lokacije
 
-Funkcija `xTaskNotifyGive` vraća notifikacionu vrednost pre setovanja na 0 (u slučaju da je `xClearOnExit` setovan na `pdTRUE`) ili dekrementiranja (u slučaju da je `xClearOnExit` setovan na `pdFALSE`).
+**Semafor** je jedan jednostavan i efikasan koncept za sinhronizaciju procesa. Semafor je objekat, promenljiva ili apstraktan tip podataka, koji ima svoje stanje, predstavljeno celobrojnom vrednošću, kao i dve operacije koje uporedni procesi mogu da vrše nad njim:
 
-Dakle kombinacija `xTaskNotifyGive` i `xTaskNotifyTake` API funkcija pruža istu funkcionalnost kao mehanizam semafora.
+- `wait` (P) - vrednost semafora koja se dekrementira i ako je nakon toga postala manja od 0, proces koji je izvršio ovu operaciju mora da čeka na semaforu
 
-Kombinacija API funkcija koje pružaju mogućnost fleksibilnijeg korišćenja mehanizma notifikacije su `xTaskNotify` i `xTaskNotifyWait`:
+- `signal` (V) - vrednost semafora se inkrementira, a ako je pre toga bila manja od 0, jedan proces koji je čekao na tom semaforu nastavlja svoje izvršavanje 
 
-```c
-BaseType_t xTaskNotify(TaskHandle_t xTaskToNotify, uint32_t ulValue, eNotifyAction eAction)
-```
+Mnogi sistemi podržavaju i posebne, **binarne semafore** čija je semantika u osnovi jednostavna. Imaju samo dve vrednosti, 0 i 1. `Wait`: ako je vrednost semafora 1, postavlja se na 0, a proces nastavlja, u suprotnom proces čeka. `Signal`: ako postoje procesi koji čekaju, jedan se blokira, u suprotnom vrednost se postavlja na 1.
 
-| Parametar           | Opis |
-| ------------------- | ---- |
-| `xTaskToNotify` | Instanca taska koji želimo da notifikujemo |
-| `xTicksToWait`  | Način na koji se ova vrednost koristi zavisi od `eAction` parametra |
-| `eAction`       | Uzima vrednost iz predefinisanog skupa vrednosti |
+Varijante binarnih semafora:
 
-Skup vrednosti `eAction`-a:
-- `eNoAction` – Vrši se isključivo notifikacija taska bez modifikacije notifikacione vrednosti. `ulValue` se ignoriše.
-- `eSetBits` - Parametar ulValue predstavlja masku koja definiše koji biti će se setovati. Ova funkcionalnost nudi mogućnost implementacije jednostavnije grupe događaja
-- `eIncrement` – Notifikaciona vrednost se inkrementira za 1. `ulValue` se ignoriše.
-- `eSetValueWithOverwrite` – Notifikaciona vrednost uzima vrednost definisanu parametrom ulValue. Ne posmatra se notifikacioni status.
-- `eSetValueWithoutOverwrite` - Notifikaciona vrednost uzima vrednost definisanu parametrom `ulValue` samo ukoliko je notifikacioni status "*Not-Pending*". Ukoliko je notifikacioni status "*Pending*" dodela notifikacioni vrednosti nije moguća i funkcija vraća `pdFALSE`.
+- `mutex` - binarni semafor namenjen samo za međusobno isključenje kritičnih sekcija, poseduje ograničenje da samo proces koji je zatvorio semafor operacijom tipa wait može da ga otvori operacijom signal
+  
+- `event` - služi za signalizaciju događaja koji mogu doći i od hardvera, pa se operacija signal može vezati i kao reakcija na spoljašnji prekid od hardvera 
 
-Primetiti da funkcija isključivo u jednom slučaju vraća `pdFALSE` u svim ostalima `pdTRUE`. U slučaju da se funkcija poziva iz konteksta prekidne rutine koristiti `xTaskNotifyFromISR`.
+**Mrtva** ili **kružna blokada** (*deadlock*) nastaje kada se n procesa međusobno kružno blokira, tako što proces P1 drži zaključan resurs/semafor/kritičnu/sekciju R1 a pritom čeka na resurs R2, proces P2 drži zauzet resurs R2 a čeka na resurs R3 itd, proces Pn drži resurs Rn a čeka na resurs P1. U odnosu na živu blokadu (*livelock*) razlika je u tome što se sada procesi ne izvršavaju, nego su trajno suspendovani, dok kod žive blokade neograničeno izvršavaju petlje uposlenog čekanja.
 
+Optimistički pristup kontroli konkurentnosti ili optimističko zaključavanje podrazumeva ponašanje kao da se konflikt neće ni dogoditi, tačnije, da je mala šansa da se on dogodi. Promena podataka obavlja se bez zaključavanja i čekanja, ali pošto se konflikt ipak može dogoditi, sprovode se tehnike koje mogu da detektuju takav konflikt. U slučaju detektovanja konflikta promena se otkazuje i pokušava ponovo.
 
-```c
-BaseType_t xTaskNotifyWait(uint32_t ulBitsToClearOnEntry,
-                           uint32_t ulBitsToClearOnExit,
-                           uint32_t* pulNotificationValue,
-                           TickType_t xTicksToWait)
-```
+Sinhronizacija je samo jedan vid interakcije uporednih procesa, drugi vid je **međuprocesna komunikacija** (*inter-process communication*, IPC), razmena informacija između procesa. Postoje dva fundamentalna logička modela međuprocesne komunikacije:
 
-| Parametar           | Opis |
-| ------------------- | ---- |
-| `ulBitsToClearOnEntry` | Maska koja definiše koje bite notifikacione vrednosti ćemo brisati na ulazu u funkciju. Može se koristiti makro `ULONG_MAX` za masku `0xFFFFFFFF` |
-| `ulBitsToClearOnExit`  | Maska koja definiše koje bite notifikacione vrednosti ćemo brisati na izlasku iz funkcije. Može se koristiti makro `ULONG_MAX` za masku `0xFFFFFFFF` |
-| `pulNotificationValue` | Notifikaciona vrednost pre brisanja. Ukoliko ne koristimo možemo proslediti `NULL`  |
-| `xTicksToWait`         | Broj sistemski tikova koliko će task provesti u blokiranom stanju čekajući da notifikaciona vrednost postane različita od 0  |
+- deljena promenljiva ili deljeni objekat ili deljeni podatak - postoji deljeni podatak ili objekat kom mogu pristupati uporedni procesi, tako da neki od njih upisuju u taj podatak, a neki od njih iz njega čitaju i na taj način razmenjuju informacije
+	
+- razmena poruka - jedan proces eksplicitno, npr. sistemskim pozivom ili jezičkim konstruktom, zahteva slanje poruke odredišnom procesu ili procesima, a proces primalac, ili više njih, eksplicitno traže prijem poruke
 
-Skup vrednosti `eAction`-a:
-- `eSetValueWithoutOverwrite` – Vrši se isključivo notifikacija taska bez modifikacije notifikacione vrednosti. `ulValue` se ignoriše.
-- `eSetBits` - Parametar ulValue predstavlja masku koja definiše koji biti će se setovati. Ova funkcionalnost nudi mogućnost implementacije jednostavnije grupe događaja
-- `eIncrement` – Notifikaciona vrednost se inkrementira za 1. `ulValue` se ignoriše.
-- `eSetValueWithOverwrite` – Notifikaciona vrednost uzima vrednost definisanu parametrom ulValue. Ne posmatra se notifikacioni status.
+## Ulazno-izlazni podsistem
 
-> [!IMPORTANT]
-> Da bi korišćenje mehanizma notifikacije u FreeRTOS-u bilo moguće neophodno je setovati makro `configUSE_TASK_NOTIFICATIONS` na vrednost 1.
+### Interfejs ulazno-izlaznog podsistema
+
