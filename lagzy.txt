@@ -1,7 +1,7 @@
-// == BINDS ==
+
+
 unbindall;
 
-// Basic Controls
 bind "a" "+left";
 bind "d" "+right";
 bind "s" "+back";
@@ -14,11 +14,9 @@ bind "MOUSE2" "+attack2";
 bind "MOUSE_X" "yaw";
 bind "MOUSE_Y" "pitch";
 
-// Jump, W jump, Middle throw
 bind "." "+jump";
 bind "," "+forward";
 
-// Weapon/Nade Slots
 bind "1" "slot3; alias weapon_toggle +toggle_slot1;";
 bind "2" "slot2; alias weapon_toggle +toggle_slot1;";
 bind "3" "slot1; alias weapon_toggle +toggle_slot2;";
@@ -30,7 +28,6 @@ bind "x" "slot10; alias weapon_toggle +toggle_slot1;";
 bind "mouse4" "slot7; alias weapon_toggle +toggle_slot1;";
 bind "mouse5" "slot6; alias weapon_toggle +toggle_slot1;";
 
-// Actions
 bind "f" "+use";
 bind "r" "+reload";
 bind "t" "player_ping";
@@ -40,12 +37,10 @@ bind "h" "switchhands";
 bind "j" "+spray_menu";
 bind "v" "toggle cl_radar_scale 1 0.3";
 
-// Menu
 bind "b" "buymenu";
 bind "m" "teammenu";
 bind "n" "give weapon_flashbang; give weapon_molotov; give weapon_hegrenade; give weapon_smokegrenade; give weapon_ak47;";
 
-// Radio & Voice
 bind "y" "messagemode";
 bind "u" "messagemode2";
 bind "i" "+radialradio";
@@ -53,30 +48,25 @@ bind "o" "+radialradio2";
 bind "p" "radio";
 bind "SPACE" "+voicerecord";
 
-// Function Keys
 bind "F5" "jpeg";
 bind "F6" "save quick";
 bind "F7" "load quick";
 bind "F8" "cs_quit_prompt";
 
-// Other
 bind "ESCAPE" "cancelselect";
 bind "`" "toggleconsole";
 bind "TAB" "+showscores";
 bind "DEL" "mute";
 bind "PAUSE" "pause";
 
-// Switching between rifle and pistol
 alias "+toggle_slot1" "slot1; alias weapon_toggle +toggle_slot2;";
 alias "+toggle_slot2" "slot2; alias weapon_toggle +toggle_slot1;";
 alias "weapon_toggle" "+toggle_slot2";
 
 bind "q" "weapon_toggle";
 
-// == Crosshair ==
 bind "5" "toggle cl_crosshairsize 999 1.5";
 
-// Current Crosshair
 cl_crosshairstyle 4;
 cl_crosshairsize 0.75;
 cl_crosshairthickness 1;
@@ -89,7 +79,6 @@ cl_crosshairalpha 255;
 cl_crosshair_recoil 0;
 cl_crosshairgap_useweaponvalue 0;
 
-// Sniper
 cl_sniper_auto_rezoom 1;
 cl_crosshair_sniper_width 2;
 cl_crosshairgap_useweaponvalue 0;
@@ -101,7 +90,6 @@ alias "crosshair2" "cl_crosshairstyle 4; cl_crosshairsize 1.5; cl_crosshairthick
 alias "crosshair3" "cl_crosshairstyle 4; cl_crosshairsize 0.5; cl_crosshairthickness 1; cl_crosshairgap -5; cl_crosshair_drawoutline 0; cl_crosshairdot 1; cl_crosshair_t 0; cl_crosshairusealpha 1; cl_crosshairalpha 255; cl_crosshair_recoil 0; cl_crosshairgap_useweaponvalue 0;";
 alias "crosshair4" "cl_crosshairstyle 4; cl_crosshairsize 0.75; cl_crosshairthickness 1; cl_crosshairgap -5; cl_crosshair_drawoutline 0; cl_crosshairdot 1; cl_crosshair_t 0; cl_crosshairusealpha 1; cl_crosshairalpha 255; cl_crosshair_recoil 0; cl_crosshairgap_useweaponvalue 0;";
 
-// Toggle between crosshair1 & crosshair2
 alias "xhair_state" "1";
 alias "xhair_to1" "crosshair4; alias xhair_state 0;";
 alias "xhair_to2" "crosshair3; alias xhair_state 1;";
@@ -110,7 +98,6 @@ alias "xhair_state_check" "xhair_state";
 alias "0" "xhair_to2";
 alias "1" "xhair_to1";
 
-// Crosshair binds
 bind "6" "crosshair1";
 bind "7" "crosshair2";
 bind "8" "crosshair3; alias xhair_state 1;";
@@ -118,20 +105,15 @@ bind "9" "crosshair4; alias xhair_state 0;";
 bind "0" "toggle cl_crosshaircolor 0 1 2 3 4 5";
 bind "MWHEELDOWN" "xhair_toggle";
 
-// == SETTINGS ==
-
-// Sensitivity
 sensitivity 0.4;
 zoom_sensitivity_ratio 0.8;
 
-// Viewmodel
 viewmodel_presetpos 1;
 viewmodel_fov 64;
 viewmodel_offset_x 0;
 viewmodel_offset_y 1;
 viewmodel_offset_z -2;
 
-// Info & Hud
 cl_allow_animated_avatars 0;
 cl_hud_radar_scale 1.15;
 cl_hud_color 0;
@@ -145,7 +127,6 @@ cl_teamcounter_playercount_instead_of_avatars 1;
 engine_low_latency_sleep_after_client_tick 1;
 r_show_build_info 0;
 
-// Visuals & Performance
 r_fullscreen_gamma 2.1;
 hud_scaling 1.0;
 hud_showtargetid 1;
@@ -155,15 +136,11 @@ con_enable 1;
 fps_max 999;
 rate 1000000;
 
-// Menu/Main Background
 ui_mainmenu_bkgnd_movie_9CA40421 cs_office;
 ui_vanitysetting_team ct;
 ui_vanitysetting_loadoutslot_ct rifle4;
 ui_vanitysetting_loadoutslot_t rifle2;
 
-// AUDIO
-
-// Audio
 volume 0.08;
 snd_menumusic_volume 0.08;
 snd_headphone_eq 0;
@@ -171,7 +148,6 @@ snd_spatialize_lerp 1;
 snd_steamaudio_enable_perspective_correction 0;
 snd_mute_losefocus 0;
 
-// Voice
 snd_voipvolume 1;
 voice_modenable 1;
 voice_device_override 0;
@@ -179,7 +155,6 @@ voice_loopback 0;
 voice_always_sample_mic 1;
 voice_threshold -120;
 
-// Music
 snd_menumusic_volume 0;
 snd_roundstart_volume 0;
 snd_roundaction_volume 0;
@@ -192,7 +167,6 @@ snd_mute_mvp_music_live_players 1;
 
 snd_game_mode_eq 0;
 
-// ??
 snd_ducktovolume 0.55;
 snd_gamevolume 1;
 snd_musicvolume 1;
