@@ -1,4 +1,5 @@
 unbindall;
+bind "`" "toggleconsole";
 
 bind "a" "+left";
 bind "d" "+right";
