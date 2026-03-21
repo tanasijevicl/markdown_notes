@@ -7,11 +7,6 @@ bind "s" "+back";
 bind "w" "+forward";
 bind "CTRL" "+duck";
 bind "SHIFT" "+sprint";
-bind "MWHEELUP" "+jump";
-bind "MOUSE1" "+attack";
-bind "MOUSE2" "+attack2";
-bind "MOUSE_X" "yaw";
-bind "MOUSE_Y" "pitch";
 
 bind "." "+jump";
 bind "," "+forward";
@@ -21,12 +16,10 @@ bind "2" "slot2";
 bind "3" "slot1";
 bind "4" "slot5";
 bind "q" "slot2";
-bind "e" "slot3";
+bind "e" "slot2";
 bind "z" "slot9";
 bind "c" "slot8";
 bind "x" "slot10";
-bind "mouse4" "slot7";
-bind "mouse5" "slot6";
 
 bind "f" "+use";
 bind "r" "+reload";
@@ -53,7 +46,6 @@ bind "`" "toggleconsole";
 bind "\" "toggleconsole";
 bind "TAB" "+showscores";
 
-bind "MWHEELDOWN" "toggle cl_crosshairsize 999 1";
 bind "0" "toggle cl_crosshaircolor 1 2 3 4 0"
 
 cl_crosshairstyle 4;
@@ -91,10 +83,10 @@ cl_hud_color 0;
 cl_use_opens_buy_menu 0;
 cl_color 4;
 cl_radar_square_with_scoreboard 0;
-cl_player_ping_mute 1;
+cl_player_ping_mute 0;
 cl_teammate_colors_show 1;
 cl_showloadout 1;
-cl_teamcounter_playercount_instead_of_avatars 1;
+cl_teamcounter_playercount_instead_of_avatars 0;
 engine_low_latency_sleep_after_client_tick 1;
 r_show_build_info 0;
 
@@ -109,7 +101,7 @@ rate 1000000;
 
 volume 0.15;
 snd_menumusic_volume 0.15;
-snd_menumap_volume 0.15;
+snd_menumap_volume 0.10;
 snd_headphone_eq 0;
 snd_spatialize_lerp 0;
 snd_steamaudio_enable_perspective_correction 0;
@@ -131,3 +123,12 @@ snd_mapobjective_volume 0;
 snd_tensecondwarning_volume 0.01;
 snd_deathcamera_volume 0;
 snd_mute_mvp_music_live_players 1;
+
+bind "MOUSE_X" "yaw";
+bind "MOUSE_Y" "pitch";
+bind "MOUSE1" "+attack";
+bind "MOUSE2" "+attack2";
+bind "MOUSE4" "slot7";
+bind "MOUSE5" "slot6";
+bind "MWHEELUP" "+jump";
+bind "MWHEELDOWN" "toggle cl_crosshairsize 999 1";
